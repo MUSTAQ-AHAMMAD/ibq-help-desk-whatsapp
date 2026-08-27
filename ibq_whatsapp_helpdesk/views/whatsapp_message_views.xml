@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_whatsapp_message_tree" model="ir.ui.view">
+        <field name="name">whatsapp.message.tree</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <tree string="WhatsApp Messages" create="false"
+                  decoration-danger="state == 'failed'"
+                  decoration-muted="state == 'cancelled'">
+                <field name="create_date" string="When"/>
+                <field name="direction"/>
+                <field name="number"/>
+                <field name="partner_id"/>
+                <field name="body"/>
+                <field name="ticket_id" optional="show"/>
+                <field name="is_bot" optional="hide"/>
+                <field name="is_command" optional="hide"/>
+                <field name="twilio_sid" optional="hide"/>
+                <field name="error_message" optional="hide"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('delivered', 'read')"
+                       decoration-info="state in ('sent', 'received')"
+                       decoration-warning="state == 'outgoing'"
+                       decoration-danger="state == 'failed'"/>
+                <button name="action_retry" type="object" icon="fa-refresh"
+                        title="Retry" invisible="state != 'failed'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_message_form" model="ir.ui.view">
+        <field name="name">whatsapp.message.form</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Message" create="false">
+                <header>
+                    <button name="action_retry" type="object" string="Retry"
+                            class="btn-primary" invisible="state != 'failed'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state not in ('draft', 'outgoing', 'failed')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="alert alert-danger" role="alert" invisible="state != 'failed'">
+                        <field name="error_code" readonly="1" class="oe_inline"/>
+                        <field name="error_message" readonly="1" class="oe_inline" nolabel="1"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="direction"/>
+                            <field name="number"/>
+                            <field name="partner_id"/>
+                            <field name="conversation_id"/>
+                            <field name="ticket_id"/>
+                        </group>
+                        <group>
+                            <field name="account_id"/>
+                            <field name="message_type"/>
+                            <field name="template_id" invisible="message_type != 'template'"/>
+                            <field name="twilio_sid" readonly="1"/>
+                            <field name="sent_date" readonly="1"/>
+                            <field name="delivered_date" readonly="1"/>
+                            <field name="author_id" readonly="1"/>
+                            <field name="is_bot" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Body">
+                        <field name="body" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Media" invisible="not attachment_ids and not media_url">
+                        <field name="attachment_ids" widget="many2many_binary" nolabel="1" colspan="2"/>
+                        <field name="media_url" readonly="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_message_search" model="ir.ui.view">
+        <field name="name">whatsapp.message.search</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <search string="WhatsApp Messages">
+                <field name="number"/>
+                <field name="partner_id"/>
+                <field name="body"/>
+                <field name="twilio_sid"/>
+                <filter name="inbound" string="Inbound" domain="[('direction', '=', 'inbound')]"/>
+                <filter name="outbound" string="Outbound" domain="[('direction', '=', 'outbound')]"/>
+                <separator/>
+                <filter name="failed" string="Failed" domain="[('state', '=', 'failed')]"/>
+                <filter name="commands" string="Agent Commands" domain="[('is_command', '=', True)]"/>
+                <filter name="queued" string="Queued" domain="[('state', '=', 'outgoing')]"/>
+                <separator/>
+                <filter name="today" string="Today"
+                        domain="[('create_date', '&gt;=', datetime.datetime.combine(context_today(), datetime.time(0,0,0)))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_direction" string="Direction" context="{'group_by': 'direction'}"/>
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_partner" string="Contact" context="{'group_by': 'partner_id'}"/>
+                    <filter name="group_date" string="Date" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_message" model="ir.actions.act_window">
+        <field name="name">Messages</field>
+        <field name="res_model">whatsapp.message</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_whatsapp_message_search"/>
+        <field name="context">{'search_default_group_date': 1}</field>
+    </record>
+
+    <record id="action_whatsapp_message_failed" model="ir.actions.act_window">
+        <field name="name">Failed Messages</field>
+        <field name="res_model">whatsapp.message</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('state', '=', 'failed')]</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Nothing has failed</p>
+            <p>Messages Twilio refused show up here with the error it returned.</p>
+        </field>
+    </record>
+
+</odoo>

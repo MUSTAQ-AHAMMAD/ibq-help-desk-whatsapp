@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Odoo
+*.log
+.odoorc
+odoo.conf
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Demo stack scratch (the compose file itself is tracked)
+demo/filestore/
+demo/*.local.yml
