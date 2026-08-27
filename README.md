@@ -451,7 +451,36 @@ The dashboard's Reports tab leads with four numbers:
 Then a table of every issue with how often it was raised, how many different
 customers hit it, how many are still open, average time to close, and average
 rating. Sort by *Raised* to find what is worth fixing at the source rather than
-answering again. It exports to CSV like every other report.
+answering again.
+
+### Exports
+
+Two, because a summary and a detail answer different questions:
+
+| Export | One row per | Carries |
+|---|---|---|
+| **Issues** | issue | Type (repeated / one-off), times raised, distinct customers, still open, first and last raised, average first response, average time to close, ratings count and average, tags, departments, the documented fix |
+| **Issue details** | chat | Its issue and type, the issue's tags, when it opened, number, customer, department, agent, ticket and subject, state, priority, chat tags, message count, first response, resolution, whether the bot handled it alone, closed date, rating and the customer's comment |
+
+**Issue details** is the file you pivot. Every chat carries the issue it belongs
+to, so you can slice recurrence by agent, department, month or rating without
+leaving a spreadsheet.
+
+The **Conversations** export also carries *Issue* and *Issue type* now, so the
+raw chat export answers the same questions.
+
+The panel trims its table to the top 20 for reading; **the exports never trim**,
+and the panel says so when there are more. Raw exports stop at 20,000 rows and
+the notification tells you when that ceiling was hit — a file that quietly
+stopped early is worse than no file.
+
+### Keeping the catalogue honest
+
+The matching rules can be tuned — a stopword added, the threshold moved — and
+old issues do not re-group themselves. **Reclassify all chats**, on the Issues
+list, empties the catalogue and rebuilds it from every conversation. Issues left
+with nothing under them are swept up by the half-hourly cron, so a merge or a
+tightened rule never leaves the reports counting problems nobody has.
 
 ### How chats are grouped
 
@@ -640,11 +669,11 @@ sender.
 python odoo-bin -c odoo.conf -d YOUR_DB -i ibq_whatsapp_helpdesk --test-enable --stop-after-init
 ```
 
-151 tests across five files, all stubbing the Twilio call. They pass against
+157 tests across five files, all stubbing the Twilio call. They pass against
 Odoo 17 Community with the demo stack:
 
 ```
-odoo.tests.result: 0 failed, 0 error(s) of 151 tests
+odoo.tests.result: 0 failed, 0 error(s) of 157 tests
 ```
 
 `tests/test_whatsapp_helpdesk.py` (16) — number normalisation, signature
@@ -666,8 +695,9 @@ for an Agent trying to reassign someone else's chat.
 grouping: that mirroring never duplicates, that the log mode is respected, that
 a customer's `<script>` is escaped rather than rendered, that line breaks
 survive into the chatter, that filler like "anyone there?" never becomes an
-issue, and that a chat created in the current second still falls inside its own
-reporting window.
+issue, that a chat created in the current second still falls inside its own
+reporting window, and that the exports are not silently capped at the size of
+the table on screen.
 
 `tests/test_whatsapp_roles.py` (55) — the permission boundary, which is the
 part worth testing hardest. Role-to-group mapping including promotion,

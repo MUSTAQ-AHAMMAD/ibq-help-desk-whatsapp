@@ -64,10 +64,17 @@ export class ReportsPanel extends Component {
                 target: "self",
             });
             this.notification.add(
-                _t("%(rows)s row(s) exported to %(name)s.", {
-                    rows: result.rows, name: result.name,
-                }),
-                { type: "success" }
+                result.truncated
+                    ? _t(
+                        "%(rows)s row(s) exported to %(name)s — the row ceiling " +
+                        "was reached, so narrow the period or the filters to be " +
+                        "sure you have everything.",
+                        { rows: result.rows, name: result.name }
+                    )
+                    : _t("%(rows)s row(s) exported to %(name)s.", {
+                        rows: result.rows, name: result.name,
+                    }),
+                { type: result.truncated ? "warning" : "success" }
             );
         } catch (error) {
             this.notification.add(
@@ -112,6 +119,15 @@ export class ReportsPanel extends Component {
             distinct_count: 0, classified: 0, unclassified: 0,
             repeat_share: 0, contacts: 0, repeat_contacts: 0,
         };
+    }
+
+    /** The table is trimmed for reading; the export never is. */
+    get issuesShown() {
+        return this.issues.rows.length;
+    }
+
+    get issuesHidden() {
+        return Math.max(0, this.issues.distinct_count - this.issuesShown);
     }
 
     get issueMax() {

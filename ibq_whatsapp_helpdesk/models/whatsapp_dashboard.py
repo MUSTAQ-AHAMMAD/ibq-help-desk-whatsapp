@@ -15,6 +15,7 @@ Two layers of access apply, and both matter:
 import base64
 import csv
 import io
+import logging
 from datetime import date, datetime, timedelta
 
 from odoo import _, api, fields, models
@@ -22,7 +23,13 @@ from odoo.exceptions import AccessError, UserError
 
 from .whatsapp_agent import ROLE_RIGHTS
 
+_logger = logging.getLogger(__name__)
+
 PERIODS = {"today": 1, "7d": 7, "30d": 30, "90d": 90, "365d": 365}
+
+# Row ceiling for raw exports. Reached is reported back to the caller rather
+# than silently truncated, so nobody analyses a file that quietly stops early.
+EXPORT_LIMIT = 20000
 
 RESPONSE_BUCKETS = [
     (60, "under 1 min"),
@@ -868,17 +875,24 @@ class WhatsappDashboard(models.TransientModel):
         back inside a JSON response.
         """
         self._assert("export")
-        builders = {
+        # Two families. The first re-query the database so the file is
+        # complete; the panels they come from show a readable top-N, and an
+        # export that silently inherited that cap would be a quiet lie.
+        raw_builders = {
+            "conversations": self._csv_conversations,
+            "issues": self._csv_issues,
+            "issue_details": self._csv_issue_details,
+        }
+        summary_builders = {
             "leaderboard": self._csv_leaderboard,
             "tags": self._csv_tags,
             "departments": self._csv_departments,
             "csat": self._csv_csat,
-            "issues": self._csv_issues,
         }
-        if kind == "conversations":
-            header, rows = self._csv_conversations(filters)
-        elif kind in builders:
-            header, rows = builders[kind](self.get_reports(filters))
+        if kind in raw_builders:
+            header, rows = raw_builders[kind](filters)
+        elif kind in summary_builders:
+            header, rows = summary_builders[kind](self.get_reports(filters))
         else:
             raise UserError(_("Nothing to export for '%s'.") % kind)
 
@@ -895,10 +909,16 @@ class WhatsappDashboard(models.TransientModel):
             "datas": base64.b64encode(buffer.getvalue().encode("utf-8-sig")),
             "res_model": self._name,
         })
+        truncated = len(rows) >= EXPORT_LIMIT
+        if truncated:
+            _logger.warning(
+                "WhatsApp export '%s' hit the %s-row ceiling", kind, EXPORT_LIMIT
+            )
         return {
             "name": name,
             "url": "/web/content/%s?download=true" % attachment.id,
             "rows": len(rows),
+            "truncated": truncated,
         }
 
     def _csv_leaderboard(self, reports):
@@ -923,15 +943,99 @@ class WhatsappDashboard(models.TransientModel):
                 for r in reports["departments"]]
         return header, rows
 
-    def _csv_issues(self, reports):
-        header = ["Issue", "Kind", "Occurrences", "Customers", "Still open",
-                  "Avg time to close (s)", "Avg rating", "Tags", "Last seen"]
-        rows = [
-            [r["name"], r["kind"], r["count"], r["contacts"], r["open"],
-             r["avg_resolution"], r["rating"], ", ".join(r["tags"]),
-             r["last_seen"]]
-            for r in reports["issues"]["rows"]
-        ]
+    @api.model
+    def _issue_conversations(self, filters):
+        """Every classified conversation in the current filter, oldest first."""
+        start, end, _prev = self._period_bounds(filters)
+        domain = self._report_domain() + self._filter_domain(filters)
+        domain += [("create_date", ">=", start), ("create_date", "<", end),
+                   ("issue_id", "!=", False)]
+        return self.env["whatsapp.conversation"].search(
+            domain, limit=EXPORT_LIMIT, order="issue_id, create_date"
+        )
+
+    def _csv_issues(self, filters):
+        """One row per issue -- the whole catalogue, not the panel's top 20."""
+        conversations = self._issue_conversations(filters)
+        by_issue = {}
+        for conversation in conversations:
+            by_issue.setdefault(
+                conversation.issue_id, self.env["whatsapp.conversation"]
+            )
+            by_issue[conversation.issue_id] |= conversation
+
+        header = ["Issue", "Type", "Times raised", "Customers", "Still open",
+                  "First raised", "Last raised", "Avg first response (s)",
+                  "Avg time to close (s)", "Ratings", "Avg rating", "Tags",
+                  "Departments", "Documented fix"]
+        rows = []
+        for issue, found in by_issue.items():
+            responded = found.filtered("first_response_seconds")
+            resolved = found.filtered("resolution_seconds")
+            rated = found.filtered("rating_score")
+            dates = found.mapped("create_date")
+            rows.append([
+                issue.name,
+                "repeated" if len(found) > 1 else "one-off",
+                len(found),
+                len(set(found.mapped("number"))),
+                len(found.filtered(lambda c: c.state != "closed")),
+                fields.Datetime.to_string(min(dates)),
+                fields.Datetime.to_string(max(dates)),
+                round(sum(responded.mapped("first_response_seconds")) / len(responded))
+                if responded else "",
+                round(sum(resolved.mapped("resolution_seconds")) / len(resolved))
+                if resolved else "",
+                len(rated),
+                round(sum(rated.mapped("rating_score")) / len(rated), 2)
+                if rated else "",
+                ", ".join(issue.tag_ids.mapped("name")),
+                ", ".join(sorted(set(found.mapped("team_id.name")))),
+                (issue.note or "").replace("\n", " ")[:200],
+            ])
+        rows.sort(key=lambda r: (-r[2], r[0]))
+        return header, rows
+
+    def _csv_issue_details(self, filters):
+        """One row per chat, carrying the issue it belongs to.
+
+        This is the file you pivot: every conversation with its issue, its
+        type, who handled it, how long it took and what the customer thought.
+        """
+        header = ["Issue", "Type", "Issue tags", "Opened", "Number", "Customer",
+                  "Department", "Agent", "Ticket", "Ticket subject", "State",
+                  "Priority", "Chat tags", "Messages", "First response (s)",
+                  "Resolution (s)", "Handled by bot only", "Closed", "Rating",
+                  "Rating comment"]
+        rows = []
+        priorities = dict(
+            self.env["whatsapp.conversation"]._fields["priority"].selection
+        )
+        for conversation in self._issue_conversations(filters):
+            issue = conversation.issue_id
+            rows.append([
+                issue.name,
+                issue.kind,
+                ", ".join(issue.tag_ids.mapped("name")),
+                fields.Datetime.to_string(conversation.create_date),
+                conversation.number,
+                conversation.partner_id.display_name or "",
+                conversation.team_id.name or "",
+                conversation.user_id.name or "",
+                conversation.ticket_id.id or "",
+                conversation.ticket_id.name or "",
+                conversation.state,
+                priorities.get(conversation.priority, ""),
+                ", ".join(conversation.tag_ids.mapped("name")),
+                conversation.message_count,
+                conversation.first_response_seconds or "",
+                conversation.resolution_seconds or "",
+                "yes" if conversation.bot_resolved else "no",
+                fields.Datetime.to_string(conversation.closed_date)
+                if conversation.closed_date else "",
+                conversation.rating_score or "",
+                (conversation.rating_id.comment or "").replace("\n", " "),
+            ])
         return header, rows
 
     def _csv_csat(self, reports):
@@ -944,16 +1048,19 @@ class WhatsappDashboard(models.TransientModel):
         start, end, _prev = self._period_bounds(filters)
         domain = self._report_domain() + self._filter_domain(filters)
         domain += [("create_date", ">=", start), ("create_date", "<", end)]
-        records = self.env["whatsapp.conversation"].search(domain, limit=5000)
+        records = self.env["whatsapp.conversation"].search(
+            domain, limit=EXPORT_LIMIT, order="create_date"
+        )
         header = ["Opened", "Number", "Contact", "Department", "Agent", "State",
-                  "Priority", "Tags", "Ticket", "First response (s)",
-                  "Resolution (s)", "Bot resolved", "Rating"]
+                  "Priority", "Tags", "Issue", "Issue type", "Ticket",
+                  "First response (s)", "Resolution (s)", "Bot resolved", "Rating"]
         rows = [
             [
                 fields.Datetime.to_string(c.create_date), c.number,
                 c.partner_id.display_name or "", c.team_id.name or "",
                 c.user_id.name or "", c.state, c.priority,
                 ", ".join(c.tag_ids.mapped("name")),
+                c.issue_id.name or "", c.issue_id.kind or "",
                 c.ticket_id.id or "", c.first_response_seconds,
                 c.resolution_seconds, "yes" if c.bot_resolved else "no",
                 c.rating_score or "",

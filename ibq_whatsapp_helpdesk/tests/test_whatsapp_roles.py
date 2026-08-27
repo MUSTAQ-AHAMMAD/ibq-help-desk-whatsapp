@@ -345,12 +345,14 @@ class TestWhatsappRoles(TransactionCase):
 
     def test_sending_a_canned_reply_counts_its_use(self):
         conversation = self._conversation("+971511000080")
-        conversation.write({"state": "agent", "user_id": self.env.uid,
-                            "last_inbound_date": "2999-01-01 00:00:00"})
         canned = self.env["whatsapp.canned.response"].create({
             "shortcut": "thanks", "name": "Thanks", "body": "Thank you!",
         })
+        # Inside the stub: assigning an agent now tells the customer who has
+        # them, which is a real send.
         with patch(SEND_PATH, fake_send):
+            conversation.write({"state": "agent", "user_id": self.env.uid,
+                                "last_inbound_date": "2999-01-01 00:00:00"})
             self.env["whatsapp.dashboard"].send_message(
                 conversation.id, "Thank you!", canned_id=canned.id
             )

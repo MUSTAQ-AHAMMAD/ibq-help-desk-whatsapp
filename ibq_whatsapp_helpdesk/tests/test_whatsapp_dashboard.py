@@ -276,7 +276,11 @@ class TestWhatsappDashboard(TransactionCase):
         self.assertEqual(conversation.state, "agent")
         self.assertEqual(conversation.user_id, self.env.user)
 
-        self.env["whatsapp.dashboard"].assign_conversation(conversation.id, self.bob.id)
+        # Stubbed: reassigning now tells the customer who has taken over.
+        with patch(SEND_PATH, fake_send):
+            self.env["whatsapp.dashboard"].assign_conversation(
+                conversation.id, self.bob.id
+            )
         conversation.invalidate_recordset()
         self.assertEqual(conversation.user_id, self.bob)
 

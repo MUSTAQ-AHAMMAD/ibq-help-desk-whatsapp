@@ -1356,3 +1356,16 @@
 .o_wa_issue__name { font-weight: 600; margin-right: 6px; }
 .o_wa_issue__bar { display: block; min-width: 60px; }
 .o_wa_issue__fill--one { background: var(--wa-mute); }
+
+.o_wa_exportgroup {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.o_wa_exportgroup__l {
+    font-size: 10.5px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--wa-mute);
+}

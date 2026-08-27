@@ -139,6 +139,29 @@ class TestWhatsappIssue(TransactionCase):
             ("issue_id", "=", False),
         ]))
 
+    def test_empty_issues_are_swept_up(self):
+        """An issue with nothing under it makes the reports count phantoms."""
+        orphan = self.env["whatsapp.issue"].create({
+            "name": "Nobody raised this", "keywords": "nobody raised",
+        })
+        self.assertEqual(orphan.occurrence_count, 0)
+        self.env["whatsapp.issue"]._cron_classify()
+        self.assertFalse(orphan.exists())
+
+    def test_reclassify_applies_tightened_rules_to_old_data(self):
+        """Tuning the matcher has to be applicable to what is already there."""
+        stale = self.env["whatsapp.issue"].create({
+            "name": "Anyone there?", "keywords": "anyone there",
+        })
+        conversation = self._chat("+971570000300", "Anyone there?")
+        conversation.issue_id = stale
+        self.assertEqual(stale.occurrence_count, 1)
+
+        self.env["whatsapp.issue"].action_reclassify_all()
+        conversation.invalidate_recordset()
+        self.assertFalse(stale.exists(), "filler no longer earns an issue")
+        self.assertFalse(conversation.issue_id)
+
     def test_merging_two_issues(self):
         first = self._chat("+971570000060", "Cannot log in to the portal")
         second = self._chat("+971570000061", "Password reset never arrives")
@@ -210,6 +233,68 @@ class TestWhatsappIssue(TransactionCase):
         )
         self.assertTrue(result["name"].endswith(".csv"))
         self.assertGreaterEqual(result["rows"], 1)
+
+    def test_issue_export_is_not_capped_at_the_panel_size(self):
+        """The panel shows a readable top-20; the file must hold everything.
+
+        Exporting the displayed rows would silently hand someone a truncated
+        analysis that looks complete.
+        """
+        # Letters only, and unique per subject: tokenise() strips digits, so
+        # "word1".."word24" would all collapse to a single token.
+        def coined(n):
+            letters = "abcdefghijklmnopqrstuvwxyz"
+            return "zq" + letters[n // 26] + letters[n % 26]
+
+        for index in range(24):
+            self.env["whatsapp.issue"]._match_or_create(self._chat(
+                "+9715701%05d" % index,
+                "%s %s" % (coined(index * 2), coined(index * 2 + 1)),
+            ))
+        filters = {"period": "30d", "team_id": self.team.id}
+        report = self.env["whatsapp.dashboard"].get_reports(filters)
+        self.assertEqual(len(report["issues"]["rows"]), 20, "the panel trims")
+        self.assertGreaterEqual(report["issues"]["distinct_count"], 24)
+
+        result = self.env["whatsapp.dashboard"].export_report("issues", filters)
+        self.assertGreaterEqual(result["rows"], 24, "the export does not trim")
+        self.assertFalse(result["truncated"])
+
+    def test_issue_detail_export_has_one_row_per_chat(self):
+        for number, subject in (
+            ("+971570000200", "The office printer is jammed"),
+            ("+971570000201", "office printer jammed again"),
+            ("+971570000202", "Wrong item delivered to my address"),
+        ):
+            self.env["whatsapp.issue"]._match_or_create(self._chat(number, subject))
+
+        filters = {"period": "30d", "team_id": self.team.id}
+        header, rows = self.env["whatsapp.dashboard"]._csv_issue_details(filters)
+        self.assertEqual(len(rows), 3, "one row per conversation, not per issue")
+        for column in ("Issue", "Type", "Issue tags", "Number", "Agent",
+                       "Ticket", "First response (s)", "Rating"):
+            self.assertIn(column, header)
+
+        issues = {row[header.index("Issue")] for row in rows}
+        self.assertEqual(len(issues), 2, "two of the three share an issue")
+        kinds = {row[header.index("Type")] for row in rows}
+        self.assertEqual(kinds, {"repeated", "unique"})
+
+    def test_conversation_export_carries_the_issue(self):
+        self.env["whatsapp.issue"]._match_or_create(
+            self._chat("+971570000210", "Cannot log in to the portal")
+        )
+        header, rows = self.env["whatsapp.dashboard"]._csv_conversations(
+            {"period": "30d", "team_id": self.team.id}
+        )
+        self.assertIn("Issue", header)
+        self.assertIn("Issue type", header)
+        self.assertTrue(any(r[header.index("Issue")] for r in rows))
+
+    def test_unknown_export_kind_is_still_refused(self):
+        from odoo.exceptions import UserError
+        with self.assertRaises(UserError):
+            self.env["whatsapp.dashboard"].export_report("issue_detail", {})
 
     # ==================================================================
     # The transcript on the ticket

@@ -764,8 +764,17 @@
             <article class="o_wa_panel">
                 <header class="o_wa_panel__head">
                     <h2>What people contact you about</h2>
-                    <button class="o_wa_btn o_wa_btn--tiny" t-if="props.canExport"
-                            t-on-click="() => this.exportCsv('issues')">Export CSV</button>
+                    <div class="o_wa_exportgroup" t-if="props.canExport">
+                        <span class="o_wa_exportgroup__l">Export</span>
+                        <button class="o_wa_btn o_wa_btn--tiny"
+                                t-att-disabled="state.exporting"
+                                title="One row per issue: type, times raised, customers, timings, ratings, tags"
+                                t-on-click="() => this.exportCsv('issues')">Issues</button>
+                        <button class="o_wa_btn o_wa_btn--tiny"
+                                t-att-disabled="state.exporting"
+                                title="One row per chat, carrying its issue and type — the file you pivot"
+                                t-on-click="() => this.exportCsv('issue_details')">Issue details</button>
+                    </div>
                 </header>
 
                 <div class="o_wa_issuestats">
@@ -848,9 +857,16 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="o_wa_muted" t-if="issues.unclassified">
-                    <t t-esc="issues.unclassified"/> chat(s) had too little text to
-                    classify — usually the ones that never got past "hello".
+                <p class="o_wa_muted">
+                    <t t-if="issuesHidden">
+                        Showing the top <t t-esc="issuesShown"/> of
+                        <t t-esc="issues.distinct_count"/> issues; the export has
+                        all of them.
+                    </t>
+                    <t t-if="issues.unclassified">
+                        <t t-esc="issues.unclassified"/> chat(s) had too little text
+                        to classify — usually the ones that never got past "hello".
+                    </t>
                 </p>
             </article>
 

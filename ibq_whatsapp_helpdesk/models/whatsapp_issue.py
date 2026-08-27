@@ -183,13 +183,45 @@ class WhatsappIssue(models.Model):
 
     @api.model
     def _cron_classify(self, limit=500):
-        """Catch up on chats that have no issue yet."""
+        """Catch up on chats that have no issue yet, and sweep up empties.
+
+        An issue with nothing left under it is rot -- from a merge, a deleted
+        chat, or a matching rule that was tightened after the fact. Leaving it
+        in the catalogue means the reports count problems nobody has.
+        """
         pending = self.env["whatsapp.conversation"].sudo().search(
             [("issue_id", "=", False)], limit=limit, order="id"
         )
         for conversation in pending:
             self._match_or_create(conversation)
+        self.sudo().search([("occurrence_count", "=", 0)]).unlink()
         return len(pending)
+
+    @api.model
+    def action_reclassify_all(self):
+        """Re-run matching over every chat, from an empty catalogue.
+
+        The rules can be tuned -- a stopword added, the threshold moved -- and
+        this is how you apply that to what is already there.
+        """
+        self.env["whatsapp.agent"]._assert_right("manage_tags")
+        conversations = self.env["whatsapp.conversation"].sudo().search([])
+        conversations.write({"issue_id": False})
+        self.sudo().search([]).unlink()
+        for conversation in conversations:
+            self._match_or_create(conversation)
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "type": "success",
+                "title": _("Reclassified"),
+                "message": _("%(chats)s chat(s) regrouped into %(issues)s issue(s).",
+                             chats=len(conversations),
+                             issues=self.sudo().search_count([])),
+                "sticky": False,
+            },
+        }
 
     # ------------------------------------------------------------------
     # Actions
