@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="0">
+
+        <record id="module_category_whatsapp" model="ir.module.category">
+            <field name="name">WhatsApp</field>
+            <field name="description">Access to the WhatsApp helpdesk channel.</field>
+            <field name="sequence">45</field>
+        </record>
+
+        <!-- Three nested groups, matching the four roles on the roster.
+             Owner and Administrator share the Administrator group; the two
+             are told apart by the role field, which also decides who may
+             change whose role. -->
+        <record id="group_whatsapp_user" model="res.groups">
+            <field name="name">Agent</field>
+            <field name="category_id" ref="module_category_whatsapp"/>
+            <!-- Implies Helpdesk User: an agent opens and answers tickets, and
+                 needs to read the departments chats are routed to. -->
+            <field name="implied_ids" eval="[(4, ref('helpdesk.group_helpdesk_user'))]"/>
+            <field name="comment">Answer the chats assigned to you, and pick up
+                unassigned ones. See your own numbers only.</field>
+        </record>
+
+        <record id="group_whatsapp_supervisor" model="res.groups">
+            <field name="name">Supervisor</field>
+            <field name="category_id" ref="module_category_whatsapp"/>
+            <field name="implied_ids" eval="[(4, ref('group_whatsapp_user'))]"/>
+            <field name="comment">See and reassign every chat in your departments,
+                manage saved replies and tags, export reports, block numbers.</field>
+        </record>
+
+        <record id="group_whatsapp_manager" model="res.groups">
+            <field name="name">Administrator</field>
+            <field name="category_id" ref="module_category_whatsapp"/>
+            <field name="implied_ids" eval="[(4, ref('group_whatsapp_supervisor')),
+                                             (4, ref('helpdesk.group_helpdesk_manager'))]"/>
+            <field name="comment">Everything above, plus the roster, roles,
+                Twilio accounts, bot flows and templates.</field>
+        </record>
+
+        <!-- WhatsApp access follows the roster, not helpdesk membership, so
+             there is deliberately no helpdesk -> whatsapp implication here.
+             The system administrator is the exception: somebody has to be able
+             to configure a fresh install and appoint the first Owner. -->
+        <record id="base.group_system" model="res.groups">
+            <field name="implied_ids" eval="[(4, ref('group_whatsapp_manager'))]"/>
+        </record>
+
+        <!-- ============================================================
+             Multi-company scoping
+             ============================================================ -->
+        <record id="rule_whatsapp_account_company" model="ir.rule">
+            <field name="name">WhatsApp Account: multi-company</field>
+            <field name="model_id" ref="model_whatsapp_account"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+            <field name="global" eval="True"/>
+        </record>
+
+        <record id="rule_whatsapp_conversation_company" model="ir.rule">
+            <field name="name">WhatsApp Conversation: multi-company</field>
+            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="domain_force">['|', ('account_id.company_id', '=', False), ('account_id.company_id', 'in', company_ids)]</field>
+            <field name="global" eval="True"/>
+        </record>
+
+        <record id="rule_whatsapp_message_company" model="ir.rule">
+            <field name="name">WhatsApp Message: multi-company</field>
+            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="domain_force">['|', ('account_id.company_id', '=', False), ('account_id.company_id', 'in', company_ids)]</field>
+            <field name="global" eval="True"/>
+        </record>
+
+        <!-- ============================================================
+             Role scoping at the ORM level
+
+             The dashboard narrows what it shows, but a determined agent could
+             also reach these models through a list view or an RPC client, so
+             the same boundary is enforced as a record rule.
+             ============================================================ -->
+        <record id="rule_whatsapp_conversation_agent" model="ir.rule">
+            <field name="name">WhatsApp Conversation: own and unassigned chats</field>
+            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
+            <field name="domain_force">['|', ('user_id', '=', user.id), ('user_id', '=', False)]</field>
+        </record>
+
+        <record id="rule_whatsapp_conversation_supervisor" model="ir.rule">
+            <field name="name">WhatsApp Conversation: all</field>
+            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+
+        <record id="rule_whatsapp_message_agent" model="ir.rule">
+            <field name="name">WhatsApp Message: own and unassigned chats</field>
+            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
+            <field name="domain_force">['|', ('conversation_id', '=', False), '|', ('conversation_id.user_id', '=', user.id), ('conversation_id.user_id', '=', False)]</field>
+        </record>
+
+        <record id="rule_whatsapp_message_supervisor" model="ir.rule">
+            <field name="name">WhatsApp Message: all</field>
+            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+
+        <!-- Saved replies split read from write: an agent reads the shared
+             library but can only edit the ones they own. -->
+        <record id="rule_whatsapp_canned_read" model="ir.rule">
+            <field name="name">WhatsApp Canned Response: read shared or mine</field>
+            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
+            <field name="domain_force">['|', ('owner_id', '=', False), ('owner_id', '=', user.id)]</field>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+
+        <record id="rule_whatsapp_canned_write_own" model="ir.rule">
+            <field name="name">WhatsApp Canned Response: edit only mine</field>
+            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
+            <field name="domain_force">[('owner_id', '=', user.id)]</field>
+            <field name="perm_read" eval="False"/>
+            <field name="perm_write" eval="True"/>
+            <field name="perm_create" eval="True"/>
+            <field name="perm_unlink" eval="True"/>
+        </record>
+
+        <record id="rule_whatsapp_canned_supervisor" model="ir.rule">
+            <field name="name">WhatsApp Canned Response: manage the shared library</field>
+            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
+            <field name="domain_force">[(1, '=', 1)]</field>
+        </record>
+
+    </data>
+</odoo>

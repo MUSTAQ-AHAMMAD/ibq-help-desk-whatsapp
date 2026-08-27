@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A working starter script and the templates the module looks up by code.
+         noupdate="1" so upgrading the module never overwrites your wording. -->
+    <data noupdate="1">
+
+        <!-- ============================================================
+             Bot flow
+             ============================================================ -->
+        <record id="bot_flow_support" model="whatsapp.bot.flow">
+            <field name="name">IBQ Support (default)</field>
+            <field name="greeting">Hello {name}! You have reached IBQ Support.</field>
+            <field name="fallback_message">Sorry, I did not catch that. Please reply with one of the numbers above, or type AGENT to reach a person.</field>
+            <field name="max_invalid_attempts">3</field>
+            <field name="agent_keywords">agent,human,operator,support,talk to agent</field>
+            <field name="close_keywords">stop,end,bye,close,cancel</field>
+            <field name="restart_keywords">menu,restart,start over,hi,hello</field>
+        </record>
+
+        <!-- Steps are created first without their links, then wired up below,
+             because XML ids cannot be referenced before they exist. -->
+        <record id="bot_step_welcome" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Main menu</field>
+            <field name="code">welcome</field>
+            <field name="sequence">10</field>
+            <field name="step_type">menu</field>
+            <field name="body">What can we help you with today?</field>
+        </record>
+
+        <record id="bot_step_subject" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Ask for a summary</field>
+            <field name="code">subject</field>
+            <field name="sequence">20</field>
+            <field name="step_type">question</field>
+            <field name="body">Please describe the problem in one line.</field>
+            <field name="answer_key">subject</field>
+            <field name="answer_format">text</field>
+        </record>
+
+        <record id="bot_step_details" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Ask for details</field>
+            <field name="code">details</field>
+            <field name="sequence">30</field>
+            <field name="step_type">question</field>
+            <field name="body">Thanks. Any extra detail we should know: order number, error message, or a screenshot?</field>
+            <field name="answer_key">details</field>
+            <field name="answer_format">text</field>
+        </record>
+
+        <record id="bot_step_create_ticket" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Open the ticket</field>
+            <field name="code">create_ticket</field>
+            <field name="sequence">40</field>
+            <field name="step_type">ticket</field>
+            <field name="body">All set, {name}. Ticket #{ticket_ref} is open and an agent will reply right here.</field>
+            <field name="subject_key">subject</field>
+            <field name="ticket_priority">1</field>
+        </record>
+
+        <record id="bot_step_track" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Track an existing ticket</field>
+            <field name="code">track</field>
+            <field name="sequence">50</field>
+            <field name="step_type">question</field>
+            <field name="body">Sure. What is your ticket number?</field>
+            <field name="answer_key">ticket_lookup</field>
+            <field name="answer_format">number</field>
+            <field name="answer_error">A ticket number is digits only, for example 1042.</field>
+        </record>
+
+        <record id="bot_step_agent" model="whatsapp.bot.step">
+            <field name="flow_id" ref="bot_flow_support"/>
+            <field name="name">Hand over to an agent</field>
+            <field name="code">agent</field>
+            <field name="sequence">60</field>
+            <field name="step_type">agent</field>
+            <field name="body">Connecting you with one of our agents now. Someone will reply shortly.</field>
+        </record>
+
+        <!-- Wiring -->
+        <record id="bot_step_subject" model="whatsapp.bot.step">
+            <field name="next_step_id" ref="bot_step_details"/>
+        </record>
+        <record id="bot_step_details" model="whatsapp.bot.step">
+            <field name="next_step_id" ref="bot_step_create_ticket"/>
+        </record>
+        <record id="bot_step_create_ticket" model="whatsapp.bot.step">
+            <field name="next_step_id" ref="bot_step_agent"/>
+        </record>
+        <record id="bot_step_track" model="whatsapp.bot.step">
+            <field name="next_step_id" ref="bot_step_agent"/>
+        </record>
+        <record id="bot_flow_support" model="whatsapp.bot.flow">
+            <field name="start_step_id" ref="bot_step_welcome"/>
+        </record>
+
+        <record id="bot_option_technical" model="whatsapp.bot.option">
+            <field name="step_id" ref="bot_step_welcome"/>
+            <field name="sequence">10</field>
+            <field name="key">1</field>
+            <field name="name">Technical issue</field>
+            <field name="keywords">technical,bug,error,not working,broken</field>
+            <field name="answer_key">category</field>
+            <field name="next_step_id" ref="bot_step_subject"/>
+        </record>
+        <record id="bot_option_billing" model="whatsapp.bot.option">
+            <field name="step_id" ref="bot_step_welcome"/>
+            <field name="sequence">20</field>
+            <field name="key">2</field>
+            <field name="name">Billing or invoice</field>
+            <field name="keywords">billing,invoice,payment,refund</field>
+            <field name="answer_key">category</field>
+            <field name="next_step_id" ref="bot_step_subject"/>
+        </record>
+        <record id="bot_option_track" model="whatsapp.bot.option">
+            <field name="step_id" ref="bot_step_welcome"/>
+            <field name="sequence">30</field>
+            <field name="key">3</field>
+            <field name="name">Check an existing ticket</field>
+            <field name="keywords">status,track,existing,follow up</field>
+            <field name="answer_key">category</field>
+            <field name="next_step_id" ref="bot_step_track"/>
+        </record>
+        <record id="bot_option_agent" model="whatsapp.bot.option">
+            <field name="step_id" ref="bot_step_welcome"/>
+            <field name="sequence">40</field>
+            <field name="key">4</field>
+            <field name="name">Talk to an agent</field>
+            <field name="keywords">agent,human,person</field>
+            <field name="answer_key">category</field>
+            <field name="next_step_id" ref="bot_step_agent"/>
+        </record>
+
+        <!-- ============================================================
+             Templates
+             The bodies below must match, word for word, the templates you
+             submit in Twilio's Content Template Builder. Paste the returned
+             HX... Content SID into each record afterwards.
+             ============================================================ -->
+        <record id="whatsapp_template_ticket_created" model="whatsapp.template">
+            <field name="name">Ticket created</field>
+            <field name="code">ticket_created</field>
+            <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+            <field name="status">draft</field>
+            <field name="body">Hi {{1}}, we have opened ticket #{{2}} for you: "{{3}}". We will keep you posted right here.</field>
+        </record>
+        <record id="whatsapp_template_ticket_created_v1" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_ticket_created"/>
+            <field name="index">1</field>
+            <field name="name">Customer name</field>
+            <field name="source_type">field</field>
+            <field name="field_path">partner_id.name</field>
+        </record>
+        <record id="whatsapp_template_ticket_created_v2" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_ticket_created"/>
+            <field name="index">2</field>
+            <field name="name">Ticket number</field>
+            <field name="source_type">field</field>
+            <field name="field_path">id</field>
+        </record>
+        <record id="whatsapp_template_ticket_created_v3" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_ticket_created"/>
+            <field name="index">3</field>
+            <field name="name">Ticket subject</field>
+            <field name="source_type">field</field>
+            <field name="field_path">name</field>
+        </record>
+
+        <record id="whatsapp_template_agent_handoff" model="whatsapp.template">
+            <field name="name">Agent hand-off</field>
+            <field name="code">agent_handoff</field>
+            <field name="status">draft</field>
+            <field name="body">Thanks for waiting. One of our agents is picking this up and will reply here shortly.</field>
+        </record>
+
+        <record id="whatsapp_template_stage_update" model="whatsapp.template">
+            <field name="name">Ticket stage update</field>
+            <field name="code">ticket_stage_update</field>
+            <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+            <field name="status">draft</field>
+            <field name="body">Update on ticket #{{1}}: it is now "{{2}}".</field>
+        </record>
+        <record id="whatsapp_template_stage_update_v1" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_stage_update"/>
+            <field name="index">1</field>
+            <field name="name">Ticket number</field>
+            <field name="source_type">field</field>
+            <field name="field_path">id</field>
+        </record>
+        <record id="whatsapp_template_stage_update_v2" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_stage_update"/>
+            <field name="index">2</field>
+            <field name="name">Stage</field>
+            <field name="source_type">field</field>
+            <field name="field_path">stage_id.name</field>
+        </record>
+
+        <record id="whatsapp_template_ticket_closed" model="whatsapp.template">
+            <field name="name">Ticket closed</field>
+            <field name="code">ticket_closed</field>
+            <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
+            <field name="status">draft</field>
+            <field name="body">Ticket #{{1}} is now closed. If anything is still off, reply here and we will reopen it.</field>
+        </record>
+        <record id="whatsapp_template_ticket_closed_v1" model="whatsapp.template.variable">
+            <field name="template_id" ref="whatsapp_template_ticket_closed"/>
+            <field name="index">1</field>
+            <field name="name">Ticket number</field>
+            <field name="source_type">field</field>
+            <field name="field_path">id</field>
+        </record>
+
+    </data>
+</odoo>

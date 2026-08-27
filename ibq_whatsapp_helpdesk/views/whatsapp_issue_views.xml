@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_whatsapp_issue_tree" model="ir.ui.view">
+        <field name="name">whatsapp.issue.tree</field>
+        <field name="model">whatsapp.issue</field>
+        <field name="arch" type="xml">
+            <tree string="Issues" multi_edit="1"
+                  decoration-bf="kind == 'repeated'"
+                  decoration-muted="occurrence_count &lt; 2">
+                <field name="name"/>
+                <field name="kind" widget="badge"
+                       decoration-warning="kind == 'repeated'"/>
+                <field name="occurrence_count" string="Times raised" sum="Total"/>
+                <field name="contact_count" string="Customers"/>
+                <field name="team_id" optional="show"/>
+                <field name="tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}" optional="show"/>
+                <field name="avg_resolution_seconds" string="Avg close (s)" optional="hide"/>
+                <field name="rating_avg" string="Rating" optional="show"/>
+                <field name="first_seen" optional="hide"/>
+                <field name="last_seen" string="Last raised"/>
+                <button name="action_view_conversations" type="object"
+                        string="Chats" icon="fa-comments" class="btn-link"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_issue_form" model="ir.ui.view">
+        <field name="name">whatsapp.issue.form</field>
+        <field name="model">whatsapp.issue</field>
+        <field name="arch" type="xml">
+            <form string="Issue">
+                <header>
+                    <button name="action_view_conversations" type="object"
+                            string="See the chats" class="btn-primary"/>
+                    <field name="kind" widget="statusbar"
+                           statusbar_visible="unique,repeated"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Printer jams on the 3rd floor"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="occurrence_count" readonly="1"/>
+                            <field name="contact_count" readonly="1"/>
+                            <field name="team_id"/>
+                            <field name="tag_ids" widget="many2many_tags"
+                                   options="{'color_field': 'color'}"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="first_seen" readonly="1"/>
+                            <field name="last_seen" readonly="1"/>
+                            <field name="avg_resolution_seconds" readonly="1"/>
+                            <field name="rating_avg" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="What the fix is">
+                        <field name="note" nolabel="1" colspan="2"
+                               placeholder="The point of grouping these is to write the answer once. What is the fix, or the workaround?"/>
+                    </group>
+                    <group string="Matched on">
+                        <field name="keywords" nolabel="1" colspan="2" readonly="1"/>
+                        <div class="text-muted" colspan="2">
+                            Chats are grouped by how much of their vocabulary overlaps.
+                            If two issues here are really the same thing, select both in
+                            the list and use <b>Merge issues</b>.
+                        </div>
+                    </group>
+                    <notebook>
+                        <page string="Chats" name="conversations">
+                            <field name="conversation_ids" readonly="1">
+                                <tree>
+                                    <field name="create_date" string="Raised"/>
+                                    <field name="name"/>
+                                    <field name="ticket_id"/>
+                                    <field name="user_id"/>
+                                    <field name="state" widget="badge"/>
+                                    <field name="rating_score" string="Rating"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_issue_search" model="ir.ui.view">
+        <field name="name">whatsapp.issue.search</field>
+        <field name="model">whatsapp.issue</field>
+        <field name="arch" type="xml">
+            <search string="Issues">
+                <field name="name"/>
+                <field name="keywords"/>
+                <field name="tag_ids"/>
+                <filter name="repeated" string="Repeated"
+                        domain="[('kind', '=', 'repeated')]"/>
+                <filter name="unique" string="One-off"
+                        domain="[('kind', '=', 'unique')]"/>
+                <separator/>
+                <filter name="frequent" string="Raised 3+ times"
+                        domain="[('occurrence_count', '&gt;=', 3)]"/>
+                <filter name="many_customers" string="Affects several customers"
+                        domain="[('contact_count', '&gt;', 1)]"/>
+                <separator/>
+                <filter name="undocumented" string="No fix written down"
+                        domain="[('note', '=', False)]"/>
+                <filter name="recent" string="Raised this month"
+                        domain="[('last_seen', '&gt;=', (context_today() - relativedelta(days=30)).strftime('%Y-%m-%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_kind" string="Repeated / one-off"
+                            context="{'group_by': 'kind'}"/>
+                    <filter name="group_team" string="Department"
+                            context="{'group_by': 'team_id'}"/>
+                    <filter name="group_first" string="First raised"
+                            context="{'group_by': 'first_seen:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_issue_graph" model="ir.ui.view">
+        <field name="name">whatsapp.issue.graph</field>
+        <field name="model">whatsapp.issue</field>
+        <field name="arch" type="xml">
+            <graph string="Issues" type="bar" sample="1">
+                <field name="name"/>
+                <field name="occurrence_count" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_issue_pivot" model="ir.ui.view">
+        <field name="name">whatsapp.issue.pivot</field>
+        <field name="model">whatsapp.issue</field>
+        <field name="arch" type="xml">
+            <pivot string="Issues" sample="1">
+                <field name="team_id" type="row"/>
+                <field name="kind" type="col"/>
+                <field name="occurrence_count" type="measure"/>
+                <field name="contact_count" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_issue_merge" model="ir.actions.server">
+        <field name="name">Merge issues</field>
+        <field name="model_id" ref="model_whatsapp_issue"/>
+        <field name="binding_model_id" ref="model_whatsapp_issue"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">action = records.action_merge()</field>
+    </record>
+
+    <record id="action_whatsapp_issue_reclassify" model="ir.actions.server">
+        <field name="name">Reclassify all chats</field>
+        <field name="model_id" ref="model_whatsapp_issue"/>
+        <field name="binding_model_id" ref="model_whatsapp_issue"/>
+        <field name="binding_view_types">list</field>
+        <field name="state">code</field>
+        <field name="code">action = model.action_reclassify_all()</field>
+    </record>
+
+    <record id="action_whatsapp_issue" model="ir.actions.act_window">
+        <field name="name">Issues</field>
+        <field name="res_model">whatsapp.issue</field>
+        <field name="view_mode">tree,form,graph,pivot</field>
+        <field name="search_view_id" ref="view_whatsapp_issue_search"/>
+        <field name="context">{'search_default_repeated': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">What people actually contact you about</p>
+            <p>
+                Tags say what a chat was <i>filed under</i>. An issue says what it
+                was <i>about</i>: two people writing "the printer is jammed" and
+                "printer jammed again, 3rd floor" have one problem between them,
+                and this is where you see that.
+            </p>
+            <p>
+                Issues appear as chats are classified. Sort by <b>Times raised</b>
+                to find what is worth fixing at the source.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_issue_all" model="ir.actions.act_window">
+        <field name="name">All Issues</field>
+        <field name="res_model">whatsapp.issue</field>
+        <field name="view_mode">tree,form,graph,pivot</field>
+        <field name="search_view_id" ref="view_whatsapp_issue_search"/>
+    </record>
+
+</odoo>

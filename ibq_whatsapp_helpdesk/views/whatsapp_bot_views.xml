@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_whatsapp_bot_flow_tree" model="ir.ui.view">
+        <field name="name">whatsapp.bot.flow.tree</field>
+        <field name="model">whatsapp.bot.flow</field>
+        <field name="arch" type="xml">
+            <tree string="Bot Flows">
+                <field name="name"/>
+                <field name="start_step_id"/>
+                <field name="max_invalid_attempts"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_bot_flow_form" model="ir.ui.view">
+        <field name="name">whatsapp.bot.flow.form</field>
+        <field name="model">whatsapp.bot.flow</field>
+        <field name="arch" type="xml">
+            <form string="Bot Flow">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="IBQ Support"/></h1>
+                    </div>
+                    <group>
+                        <group string="Entry">
+                            <field name="start_step_id"
+                                   options="{'no_create': True}"/>
+                            <field name="greeting"
+                                   placeholder="Hello {name}! You have reached IBQ Support."/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Escape Hatches">
+                            <field name="agent_keywords"/>
+                            <field name="close_keywords"/>
+                            <field name="restart_keywords"/>
+                            <field name="max_invalid_attempts"/>
+                        </group>
+                    </group>
+                    <group string="When the customer answers something unexpected">
+                        <field name="fallback_message" nolabel="1" colspan="2"/>
+                    </group>
+                    <notebook>
+                        <page string="Steps" name="steps">
+                            <field name="step_ids" context="{'default_flow_id': id}">
+                                <tree>
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="step_type"/>
+                                    <field name="answer_key"/>
+                                    <field name="next_step_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_bot_step_form" model="ir.ui.view">
+        <field name="name">whatsapp.bot.step.form</field>
+        <field name="model">whatsapp.bot.step</field>
+        <field name="arch" type="xml">
+            <form string="Bot Step">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Main menu"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="flow_id"/>
+                            <field name="step_type"/>
+                            <field name="code"/>
+                            <field name="sequence"/>
+                        </group>
+                        <group>
+                            <field name="next_step_id"
+                                   invisible="step_type in ('agent', 'end')"/>
+                            <field name="answer_key"
+                                   invisible="step_type != 'question'"
+                                   required="step_type == 'question'"/>
+                            <field name="answer_format"
+                                   invisible="step_type != 'question'"/>
+                            <field name="answer_error"
+                                   invisible="step_type != 'question'"/>
+                        </group>
+                    </group>
+                    <group string="Message">
+                        <field name="body" nolabel="1" colspan="2"
+                               placeholder="What can we help you with today?"/>
+                        <div class="text-muted" colspan="2">
+                            Use {name} for the customer and {any_answer_key} to echo
+                            something they told you earlier. On a ticket step,
+                            {ticket_ref} holds the new ticket number.
+                        </div>
+                    </group>
+                    <notebook>
+                        <page string="Options" name="options"
+                              invisible="step_type != 'menu'">
+                            <field name="option_ids">
+                                <tree editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="key"/>
+                                    <field name="name"/>
+                                    <field name="keywords"/>
+                                    <field name="answer_key"/>
+                                    <field name="next_step_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Ticket" name="ticket"
+                              invisible="step_type != 'ticket'">
+                            <group>
+                                <field name="team_id"/>
+                                <field name="ticket_priority"/>
+                                <field name="subject_key"/>
+                                <field name="tag_ids" widget="many2many_tags"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_bot_step_tree" model="ir.ui.view">
+        <field name="name">whatsapp.bot.step.tree</field>
+        <field name="model">whatsapp.bot.step</field>
+        <field name="arch" type="xml">
+            <tree string="Bot Steps">
+                <field name="sequence" widget="handle"/>
+                <field name="flow_id"/>
+                <field name="name"/>
+                <field name="step_type"/>
+                <field name="next_step_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_bot_flow" model="ir.actions.act_window">
+        <field name="name">Bot Flows</field>
+        <field name="res_model">whatsapp.bot.flow</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Script the first minute of every chat</p>
+            <p>
+                A flow is a short list of steps: ask a multiple choice, collect a
+                sentence, open a ticket, then hand the chat to an agent. Customers
+                can always jump the queue by typing one of the escape keywords.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_bot_step" model="ir.actions.act_window">
+        <field name="name">Bot Steps</field>
+        <field name="res_model">whatsapp.bot.step</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+</odoo>
