@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FOR ODOO 18 - DO NOT EDIT.
+     Source: views\whatsapp_agent_views.xml
+     Rebuild with tools/build_v18.py after editing the Odoo 17 file. -->
+<odoo>
+
+    <record id="view_whatsapp_agent_tree" model="ir.ui.view">
+        <field name="name">whatsapp.agent.tree</field>
+        <field name="model">whatsapp.agent</field>
+        <field name="arch" type="xml">
+            <list string="WhatsApp Team" multi_edit="1"
+                  decoration-muted="status == 'offline'">
+                <field name="sequence" widget="handle"/>
+                <field name="user_id"/>
+                <field name="role" widget="badge"
+                       decoration-primary="role == 'owner'"
+                       decoration-info="role == 'admin'"
+                       decoration-warning="role == 'supervisor'"/>
+                <field name="status" widget="badge"
+                       decoration-success="status == 'available'"
+                       decoration-warning="status == 'busy'"
+                       decoration-muted="status == 'offline'"/>
+                <field name="active_chat_count" string="Open"/>
+                <field name="waiting_chat_count" string="Waiting"/>
+                <field name="max_active_chats" string="Capacity"/>
+                <field name="load_percent" string="Load" widget="progressbar"/>
+                <field name="auto_assign"/>
+                <field name="team_ids" widget="many2many_tags" optional="show"/>
+                <field name="account_ids" widget="many2many_tags" optional="hide"/>
+                <field name="phone" optional="show"/>
+                <field name="display_alias" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_agent_kanban" model="ir.ui.view">
+        <field name="name">whatsapp.agent.kanban</field>
+        <field name="model">whatsapp.agent</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="status" class="o_kanban_small_column">
+                <field name="status"/>
+                <field name="load_percent"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click">
+                            <div class="o_kanban_record_top">
+                                <!-- Plain image URL rather than the kanban_image()
+                                     helper: the helper's availability differs
+                                     between Odoo versions, and /web/image does
+                                     not. -->
+                                <img class="o_kanban_image_fill_left me-2"
+                                     t-att-src="'/web/image/res.users/' + record.user_id.raw_value + '/avatar_128'"
+                                     alt="Agent" style="width:38px;height:38px;border-radius:50%"/>
+                                <div class="o_kanban_record_headings">
+                                    <strong><field name="user_id"/></strong>
+                                    <div class="text-muted"><field name="role"/></div>
+                                </div>
+                            </div>
+                            <div class="o_kanban_record_bottom mt-2">
+                                <span class="text-muted">
+                                    <field name="active_chat_count"/> /
+                                    <field name="max_active_chats"/> chats
+                                </span>
+                                <span class="badge text-bg-warning"
+                                      t-if="record.waiting_chat_count.raw_value">
+                                    <field name="waiting_chat_count"/> waiting
+                                </span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_agent_form" model="ir.ui.view">
+        <field name="name">whatsapp.agent.form</field>
+        <field name="model">whatsapp.agent</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Agent">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="user_id"/>
+                        <h1><field name="user_id"/></h1>
+                    </div>
+                    <group>
+                        <group string="Role &amp; presence">
+                            <field name="role"/>
+                            <field name="status"/>
+                            <field name="auto_assign"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group string="Workload">
+                            <field name="max_active_chats"/>
+                            <field name="active_chat_count"/>
+                            <field name="waiting_chat_count"/>
+                            <field name="load_percent" widget="progressbar"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Coverage">
+                            <field name="team_ids" widget="many2many_tags"/>
+                            <field name="account_ids" widget="many2many_tags"/>
+                        </group>
+                        <group string="How customers see them">
+                            <field name="display_alias" placeholder="Sara from IBQ"/>
+                            <field name="signature" placeholder="— Sara, IBQ Support"/>
+                        </group>
+                        <group string="Commands by text">
+                            <field name="phone" placeholder="+971501234567"/>
+                            <div class="text-muted" colspan="2">
+                                With their own number here, this agent can run the
+                                queue from their phone: <code>#queue</code>,
+                                <code>#take 1042</code>, <code>#assign 1042 sue</code>,
+                                <code>#close 1042</code>. Send <code>#help</code> for
+                                the full list. Their role still decides what the
+                                command is allowed to do.
+                            </div>
+                        </group>
+                        <div class="text-muted" colspan="2">
+                            Leave a coverage list empty to cover everything. Routing only
+                            considers agents who are Available, accept routed chats, and
+                            sit below their capacity.
+                        </div>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_agent_search" model="ir.ui.view">
+        <field name="name">whatsapp.agent.search</field>
+        <field name="model">whatsapp.agent</field>
+        <field name="arch" type="xml">
+            <search string="WhatsApp Team">
+                <field name="user_id"/>
+                <field name="team_ids"/>
+                <filter name="available" string="Available" domain="[('status', '=', 'available')]"/>
+                <filter name="on_shift" string="On shift" domain="[('status', '!=', 'offline')]"/>
+                <separator/>
+                <filter name="admins" string="Owners &amp; Admins" domain="[('role', 'in', ('owner', 'admin'))]"/>
+                <filter name="supervisors" string="Supervisors" domain="[('role', '=', 'supervisor')]"/>
+                <filter name="agents" string="Agents" domain="[('role', '=', 'agent')]"/>
+                <separator/>
+                <!-- Load is computed live from open chats, so it is not a
+                     searchable column; rotation status is the useful filter. -->
+                <filter name="not_routed" string="Not in rotation"
+                        domain="['|', ('auto_assign', '=', False), ('status', '!=', 'available')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_role" string="Role" context="{'group_by': 'role'}"/>
+                    <filter name="group_status" string="Presence" context="{'group_by': 'status'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_agent" model="ir.actions.act_window">
+        <field name="name">Team Members</field>
+        <field name="res_model">whatsapp.agent</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="search_view_id" ref="view_whatsapp_agent_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Build the WhatsApp team</p>
+            <p>
+                Add the people who answer chats and give each one a role. Use
+                <b>Add Team Members</b> to bring several in at once, or manage the
+                roster from the dashboard's Team tab.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_dashboard" model="ir.actions.client">
+        <field name="name">WhatsApp Dashboard</field>
+        <field name="tag">ibq_whatsapp_dashboard</field>
+    </record>
+
+    <!-- Departments are helpdesk teams; this is just a WhatsApp-flavoured
+         entry point into them, so the menu reads the way agents talk. -->
+    <record id="action_whatsapp_department" model="ir.actions.act_window">
+        <field name="name">Departments</field>
+        <field name="res_model">helpdesk.team</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Departments are helpdesk teams</p>
+            <p>
+                Chats are routed to a department, and supervisors oversee the
+                departments listed on their roster entry. Each one carries its own
+                WhatsApp sender and chatter-relay setting.
+            </p>
+        </field>
+    </record>
+
+</odoo>

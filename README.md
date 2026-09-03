@@ -6,7 +6,7 @@ configurable bot triages them, a ticket is opened, and agents answer straight
 from the ticket chatter.
 
 - **Module:** `ibq_whatsapp_helpdesk`
-- **Odoo:** 17.0 and 18.0 from one folder (see [Odoo 17 and 18](#odoo-17-and-18))
+- **Odoo:** 17.0 and 18.0, both test-verified (see [Odoo 17 and 18](#odoo-17-and-18))
 - **Version:** 17.0.3.1.0
 - **Depends:** `base`, `web`, `bus`, `mail`, `contacts`, `helpdesk`
 - **Python:** `requests`
@@ -714,48 +714,74 @@ the invite wizard.
 
 ## Odoo 17 and 18
 
-One folder installs on both. `__manifest__.py` reads `odoo.release.version_info`
-and picks its view files accordingly:
+Both are supported, and both are tested:
 
 ```
-ibq_whatsapp_helpdesk/
-├── views/      ← Odoo 17 syntax. Canonical. Edit these.
-├── wizard/     ← Odoo 17 syntax. Canonical. Edit these.
-└── v18/
-    ├── views/  ← generated. Never hand-edit.
-    └── wizard/ ← generated. Never hand-edit.
+odoo.tests.result: 0 failed, 0 error(s) of 157 tests   ← Odoo 17.0
+odoo.tests.result: 0 failed, 0 error(s) of 157 tests   ← Odoo 18.0
 ```
 
-XML cannot branch on a version the way Python can, and Odoo 18 renamed four
-things this module uses:
+One source tree, two builds:
 
-| Odoo 17 | Odoo 18 | Occurrences |
-|---|---|---|
-| `<tree>` | `<list>` | 36 |
-| `view_mode` `tree` | `list` | 17 |
-| `<t t-name="kanban-box">` | `<t t-name="card">` | 2 |
-| `<div class="oe_chatter">` | `<chatter/>` | 1 |
+```
+ibq_whatsapp_helpdesk/        ← the Odoo 17 build. Canonical. Edit this.
+dist/18.0/                    ← the Odoo 18 build. Generated. Never edit.
+    ibq_whatsapp_helpdesk/
+    helpdesk/                 (the demo stub, ported too)
+```
 
-Everything else — all the Python, all the OWL, the security rules, the data
-files — is shared, because none of it uses anything that moved between the two.
-
-### After editing a view
+Deploy whichever matches your server. Rebuild after any change:
 
 ```bash
 python tools/build_v18.py
 ```
 
-Two checks worth wiring into CI:
+Two checks worth putting in CI:
 
 ```bash
-python tools/build_v18.py --check    # fails if v18/ is stale
-python tools/check_manifests.py      # evaluates both manifests under 17 and 18
+python tools/build_v18.py --check    # fails if dist/18.0 has drifted
+python tools/check_manifests.py      # every manifest is a literal Odoo accepts
 ```
 
-`--check` is the one that matters: it is the difference between "we ported it"
-and "the port is still in step with the source".
+### Why two builds and not one folder
 
----
+This was measured, not assumed. Five things make a single folder impossible or
+broken, and each was found by running the module on Odoo 18:
+
+| # | What | Consequence |
+|---|---|---|
+| 1 | `__manifest__.py` is read with `ast.literal_eval` | It must be a bare literal. It **cannot** branch on the running version. |
+| 2 | Odoo 18 rejects `<tree>` — *"Invalid view type"* | Not a deprecation. 17 does not know `<list>`, so no spelling satisfies both. |
+| 3 | Odoo 18 validates the manifest `version` | `17.0.x` is refused; it wants `x.y.z` or an `18.0` prefix. |
+| 4 | `ir.cron` lost `numbercall` and `doall` | A cron record carrying them fails to load. |
+| 5 | `bus.bus._sendmany` was removed | Only `_sendone` survives, and the dashboard's live updates went through it. |
+
+Numbers 1 and 2 together are the reason: the manifest cannot choose a view set,
+and the view files cannot be written once. So `tools/build_v18.py` produces a
+complete second module, transforming:
+
+| Odoo 17 | Odoo 18 |
+|---|---|
+| `<tree>` | `<list>` |
+| `view_mode` `tree` | `list` |
+| `<t t-name="kanban-box">` | `<t t-name="card">` |
+| `<div class="oe_chatter">` | `<chatter/>` |
+| `ir.cron` `numbercall` / `doall` | removed |
+| `"version": "17.0.x"` | `"18.0.x"` |
+
+Numbers 4 and 5 were fixed **in the shared source** instead, because Python can
+branch and these needed no fork: `_sendmany` became a loop over `_sendone`,
+which exists unchanged in both.
+
+### One trap worth knowing about
+
+Odoo 18's `_()` inspects the calling frame for a local named `cr` or **`cursor`**
+and assumes it is a database cursor. A date-loop variable called `cursor` — a
+completely ordinary name — therefore crashes every translated string in that
+method with a bare `AssertionError`. Five tests failed on exactly this.
+
+If you add code here, do not name a local `cr`, `cursor`, `uid` or `user` in any
+method that also calls `_()`.
 
 ## Deploying
 
@@ -766,9 +792,17 @@ cd /opt/odoo/addons
 git clone -b feat/whatsapp-helpdesk-twilio https://github.com/MUSTAQ-AHAMMAD/ibq-help-desk-whatsapp.git
 ```
 
-Then point Odoo at it. Only `ibq_whatsapp_helpdesk/` belongs in the addons
-path — **not** `demo/addons`, which contains a helpdesk stub that would collide
-with the real Enterprise app.
+Point Odoo at the build that matches your server:
+
+| Your Odoo | Addons path entry |
+|---|---|
+| **17.0** | `.../ibq-help-desk-whatsapp` (uses `ibq_whatsapp_helpdesk/`) |
+| **18.0** | `.../ibq-help-desk-whatsapp/dist/18.0` |
+
+Only the module directory belongs in the addons path — **not** `demo/addons`,
+which contains a helpdesk stub that would collide with the real Enterprise app.
+On 18, `dist/18.0/` also contains that stub; if you are on Enterprise, copy just
+`dist/18.0/ibq_whatsapp_helpdesk/` somewhere and point at that instead.
 
 ```ini
 addons_path = /opt/odoo/odoo/addons,/opt/odoo/enterprise,/opt/odoo/addons/ibq-help-desk-whatsapp
@@ -909,31 +943,30 @@ tools/
 └── check_manifests.py                evaluates both manifests under 17 and 18
 ```
 
-## What is verified, and what is not
+## What is verified
 
-| | Odoo 17 | Odoo 18 |
+| | Odoo 17.0 | Odoo 18.0 |
 |---|---|---|
-| Installs and runs | yes, repeatedly | **not yet executed** |
-| 157 tests | passing | not yet run |
-| Dashboard clicked through | yes | not yet |
-| Views port | n/a | generated and statically validated |
-| Manifest resolves | checked | checked |
+| Installs from a clean database | yes | yes |
+| 157 tests | `0 failed, 0 error(s)` | `0 failed, 0 error(s)` |
+| Dashboard clicked through, all six tabs | yes | not yet |
+| Agent commands driven end to end | yes | covered by tests |
 
-The Odoo 18 variant is a mechanical port of four renamed constructs, generated
-by `tools/build_v18.py` and checked for well-formedness, complete reference
-resolution and manifest correctness — but it has **not been installed on a real
-Odoo 18**. Run this before trusting it:
+Both suites were run against the real images (`odoo:17`, `odoo:18`) with
+PostgreSQL, from an empty database, using the build for that series.
+
+Reproduce either:
 
 ```bash
-docker run --rm -d --name pg18 -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:15
+docker run --rm --network demo_default -v "$PWD:/mnt/project:ro" -v "$PWD/demo/addons:/mnt/demo:ro" odoo:17 odoo -d t17 --db_host=db --db_user=odoo --db_password=odoo --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/demo,/mnt/project -i ibq_whatsapp_helpdesk --without-demo=all --test-enable --test-tags=/ibq_whatsapp_helpdesk --stop-after-init
 ```
 
 ```bash
-docker run --rm --link pg18:db -v "$PWD:/mnt/project:ro" -v "$PWD/demo/addons:/mnt/demo:ro" odoo:18 odoo -d t18 --db_host=db --db_user=odoo --db_password=odoo --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/demo,/mnt/project -i ibq_whatsapp_helpdesk --without-demo=all --test-enable --stop-after-init
+docker run --rm --network demo_default -v "$PWD/dist/18.0:/mnt/project:ro" odoo:18 odoo -d t18 --db_host=db --db_user=odoo --db_password=odoo --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/project -i ibq_whatsapp_helpdesk --without-demo=all --test-enable --test-tags=/ibq_whatsapp_helpdesk --stop-after-init
 ```
 
-A clean run ends with `0 failed, 0 error(s)`. Anything else is a porting gap
-worth reporting.
+What is still **not** verified on either version: a real Twilio message. Every
+test stubs the transport. See [Deploying](#deploying) step 0.
 
 ## Known limits
 

@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FOR ODOO 18 - DO NOT EDIT.
+     Source: views\whatsapp_conversation_views.xml
+     Rebuild with tools/build_v18.py after editing the Odoo 17 file. -->
+<odoo>
+
+    <record id="view_whatsapp_conversation_tree" model="ir.ui.view">
+        <field name="name">whatsapp.conversation.tree</field>
+        <field name="model">whatsapp.conversation</field>
+        <field name="arch" type="xml">
+            <list string="Conversations" decoration-bf="needs_reply" multi_edit="1">
+                <field name="priority" widget="priority" optional="show"/>
+                <field name="name"/>
+                <field name="tag_ids" widget="many2many_tags"
+                       options="{'color_field': 'color'}" optional="show"/>
+                <field name="partner_id" optional="show"/>
+                <field name="ticket_id" optional="show"/>
+                <field name="team_id" optional="hide"/>
+                <field name="user_id" optional="show"/>
+                <field name="message_count" string="Msgs"/>
+                <field name="rating_score" string="CSAT" optional="show"/>
+                <field name="last_message_date" string="Last activity"/>
+                <field name="needs_reply" widget="boolean_toggle" string="Waiting"/>
+                <field name="state" widget="badge"
+                       decoration-info="state == 'bot'"
+                       decoration-warning="state == 'agent'"
+                       decoration-muted="state == 'closed'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_conversation_form" model="ir.ui.view">
+        <field name="name">whatsapp.conversation.form</field>
+        <field name="model">whatsapp.conversation</field>
+        <field name="arch" type="xml">
+            <form string="Conversation">
+                <header>
+                    <button name="action_open_composer" type="object"
+                            string="Send Message" class="btn-primary"
+                            invisible="state == 'closed'"/>
+                    <button name="action_create_ticket" type="object"
+                            string="Create Ticket" invisible="ticket_id"/>
+                    <button name="action_handoff" type="object"
+                            string="Take Over" invisible="state != 'bot'"/>
+                    <button name="action_assign_to_me" type="object"
+                            string="Assign to Me" invisible="state == 'closed'"/>
+                    <button name="action_close" type="object"
+                            string="Close" invisible="state == 'closed'"/>
+                    <button name="action_reopen" type="object"
+                            string="Reopen" invisible="state != 'closed'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="bot,agent,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <div class="alert alert-warning" role="alert"
+                         invisible="in_session or state == 'closed'">
+                        The 24h WhatsApp session has expired. Only approved templates
+                        will be delivered until the customer writes again.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="priority" widget="priority"/>
+                            <field name="tag_ids" widget="many2many_tags"
+                                   options="{'color_field': 'color'}"/>
+                            <field name="number" readonly="1"/>
+                            <field name="profile_name" readonly="1"/>
+                            <field name="partner_id"/>
+                            <field name="account_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="ticket_id"/>
+                            <field name="team_id"/>
+                            <field name="user_id"/>
+                            <field name="needs_reply"/>
+                            <field name="session_expiry"/>
+                            <field name="rating_id" readonly="1"/>
+                            <field name="awaiting_rating" readonly="1"
+                                   invisible="not awaiting_rating"/>
+                            <field name="in_session" invisible="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Messages" name="messages">
+                            <field name="whatsapp_message_ids" readonly="1">
+                                <list decoration-muted="direction == 'outbound'"
+                                      decoration-danger="state == 'failed'">
+                                    <field name="create_date" string="When"/>
+                                    <field name="direction"/>
+                                    <field name="body"/>
+                                    <field name="is_bot"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Bot" name="bot" groups="ibq_whatsapp_helpdesk.group_whatsapp_manager">
+                            <group>
+                                <field name="bot_flow_id"/>
+                                <field name="bot_step_id"/>
+                                <field name="bot_pending_step_id"/>
+                                <field name="invalid_count"/>
+                                <field name="answers" widget="text"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_conversation_search" model="ir.ui.view">
+        <field name="name">whatsapp.conversation.search</field>
+        <field name="model">whatsapp.conversation</field>
+        <field name="arch" type="xml">
+            <search string="Conversations">
+                <field name="name"/>
+                <field name="number"/>
+                <field name="partner_id"/>
+                <field name="ticket_id"/>
+                <filter name="waiting" string="Waiting for us" domain="[('needs_reply', '=', True)]"/>
+                <filter name="with_agent" string="With Agent" domain="[('state', '=', 'agent')]"/>
+                <filter name="with_bot" string="With Bot" domain="[('state', '=', 'bot')]"/>
+                <filter name="open" string="Open" domain="[('state', '!=', 'closed')]"/>
+                <separator/>
+                <filter name="mine" string="My Chats" domain="[('user_id', '=', uid)]"/>
+                <filter name="unassigned" string="Unassigned" domain="[('user_id', '=', False)]"/>
+                <separator/>
+                <filter name="no_ticket" string="No Ticket" domain="[('ticket_id', '=', False)]"/>
+                <separator/>
+                <filter name="urgent" string="High &amp; Urgent" domain="[('priority', 'in', ('2', '3'))]"/>
+                <filter name="unhappy" string="Unhappy" domain="[('rating_score', '&lt;=', 2), ('rating_score', '&gt;', 0)]"/>
+                <filter name="rated" string="Rated" domain="[('rating_score', '&gt;', 0)]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+                    <filter name="group_team" string="Team" context="{'group_by': 'team_id'}"/>
+                    <filter name="group_user" string="Agent" context="{'group_by': 'user_id'}"/>
+                    <filter name="group_priority" string="Priority" context="{'group_by': 'priority'}"/>
+                    <filter name="group_date" string="Opened" context="{'group_by': 'create_date:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_conversation_kanban" model="ir.ui.view">
+        <field name="name">whatsapp.conversation.kanban</field>
+        <field name="model">whatsapp.conversation</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" class="o_kanban_small_column" create="false">
+                <field name="state"/>
+                <field name="needs_reply"/>
+                <templates>
+                    <t t-name="card">
+                        <div class="oe_kanban_global_click o_kanban_record_has_image_fill">
+                            <div class="o_kanban_record_top">
+                                <div class="o_kanban_record_headings">
+                                    <strong class="o_kanban_record_title">
+                                        <field name="name"/>
+                                    </strong>
+                                    <div class="o_kanban_record_subtitle text-muted">
+                                        <field name="ticket_id"/>
+                                    </div>
+                                </div>
+                                <span t-if="record.needs_reply.raw_value"
+                                      class="badge text-bg-warning">Waiting</span>
+                            </div>
+                            <div class="o_kanban_record_bottom mt-2">
+                                <div class="oe_kanban_bottom_left text-muted">
+                                    <field name="last_message_date" widget="date"/>
+                                </div>
+                                <div class="oe_kanban_bottom_right">
+                                    <field name="user_id" widget="many2one_avatar_user"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_conversation" model="ir.actions.act_window">
+        <field name="name">Conversations</field>
+        <field name="res_model">whatsapp.conversation</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="search_view_id" ref="view_whatsapp_conversation_search"/>
+        <field name="context">{'search_default_open': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No conversations yet</p>
+            <p>
+                Chats appear here the moment a customer messages your WhatsApp
+                number. Send a message to your Twilio sandbox to try it.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_conversation_waiting" model="ir.actions.act_window">
+        <field name="name">Waiting for a Reply</field>
+        <field name="res_model">whatsapp.conversation</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="domain">[('needs_reply', '=', True), ('state', '=', 'agent')]</field>
+        <field name="search_view_id" ref="view_whatsapp_conversation_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Inbox zero</p>
+            <p>Every customer who wrote in has been answered.</p>
+        </field>
+    </record>
+
+</odoo>

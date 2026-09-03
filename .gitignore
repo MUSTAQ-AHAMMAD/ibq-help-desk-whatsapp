@@ -19,3 +19,6 @@ Thumbs.db
 # Demo stack scratch (the compose file itself is tracked)
 demo/filestore/
 demo/*.local.yml
+
+# Generated Odoo 18 build check scratch
+dist/18.0.tmp/

@@ -1,92 +1,77 @@
 #!/usr/bin/env python3
-"""Evaluate each manifest as Odoo 17 and as Odoo 18, and check every path.
+"""Validate every manifest the way Odoo actually reads it.
 
-The manifests pick their view files from ``odoo.release.version_info``. That is
-a small amount of logic in the one file whose failure mode is "the module does
-not install at all", so it is worth checking without booting Odoo: this stubs
-``odoo.release``, evaluates the manifest under both versions, and asserts that
-every data file it names actually exists.
+Odoo parses ``__manifest__.py`` with ``ast.literal_eval``: it must be a bare
+dict literal, with no imports and no function calls. An earlier version of this
+script used ``exec``, and so happily accepted a manifest that Odoo rejected
+outright. It checks the real rules now:
+
+* the file is a pure literal
+* every data file it names exists
+* the version is one that series of Odoo will accept
 
     python tools/check_manifests.py
 """
+import ast
 import pathlib
+import re
 import sys
-import types
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+# (manifest, the Odoo series it is built for)
 MANIFESTS = [
-    ROOT / "ibq_whatsapp_helpdesk" / "__manifest__.py",
-    ROOT / "demo" / "addons" / "helpdesk" / "__manifest__.py",
+    (ROOT / "ibq_whatsapp_helpdesk" / "__manifest__.py", 17),
+    (ROOT / "demo" / "addons" / "helpdesk" / "__manifest__.py", 17),
+    (ROOT / "dist" / "18.0" / "ibq_whatsapp_helpdesk" / "__manifest__.py", 18),
+    (ROOT / "dist" / "18.0" / "helpdesk" / "__manifest__.py", 18),
 ]
 
 
-def evaluate(manifest_path, version):
-    """Run a manifest with a faked odoo.release, returning the dict."""
-    odoo = types.ModuleType("odoo")
-    release = types.ModuleType("odoo.release")
-    release.version_info = (version, 0, 0, "final", 0, "")
-    release.version = "%s.0" % version
-    odoo.release = release
-
-    saved = {name: sys.modules.get(name) for name in ("odoo", "odoo.release")}
-    sys.modules["odoo"] = odoo
-    sys.modules["odoo.release"] = release
-    try:
-        namespace = {"__file__": str(manifest_path)}
-        source = manifest_path.read_text(encoding="utf-8")
-        # A manifest is a bare dict literal after its imports; capture it by
-        # assigning the trailing expression.
-        brace = source.index("{")
-        exec(source[:brace], namespace)          # noqa: S102 - our own file
-        manifest = eval(source[brace:], namespace)  # noqa: S307 - our own file
-        return manifest
-    finally:
-        for name, module in saved.items():
-            if module is None:
-                sys.modules.pop(name, None)
-            else:
-                sys.modules[name] = module
+def version_ok(version, series):
+    """Odoo 18 accepts x.y, x.y.z, or its own series prefix. 17 is laxer."""
+    return bool(re.match(r"^(\d+\.\d+(\.\d+)?|%d\.0\.[\d.]+)$" % series, version))
 
 
 def main():
     problems = []
-    for manifest_path in MANIFESTS:
+    for manifest_path, series in MANIFESTS:
+        if not manifest_path.exists():
+            problems.append("missing manifest: %s" % manifest_path.relative_to(ROOT))
+            continue
+
         module_dir = manifest_path.parent
-        for version in (17, 18):
-            manifest = evaluate(manifest_path, version)
-            data = manifest.get("data", [])
-            if not data:
-                problems.append("%s v%s: no data files" % (module_dir.name, version))
-                continue
+        try:
+            manifest = ast.literal_eval(manifest_path.read_text(encoding="utf-8"))
+        except (ValueError, SyntaxError) as exc:
+            problems.append(
+                "%s: not a bare literal, Odoo will refuse it (%s)"
+                % (module_dir.name, exc)
+            )
+            continue
 
-            missing = [p for p in data if not (module_dir / p).exists()]
-            for path in missing:
-                problems.append("%s v%s: missing %s" % (module_dir.name, version, path))
+        version = manifest.get("version", "")
+        if not version_ok(version, series):
+            problems.append(
+                "%s v%s: version %r is not valid for that series"
+                % (module_dir.name, series, version)
+            )
 
-            # The whole point of the switch: 18 must not load a v17 view file.
-            views = [p for p in data if p.split("/")[0] in ("views", "wizard", "v18")]
-            if version == 18:
-                wrong = [p for p in views if not p.startswith("v18/")]
-                for path in wrong:
-                    problems.append(
-                        "%s v18: still points at the Odoo 17 file %s" % (module_dir.name, path)
-                    )
-            else:
-                wrong = [p for p in views if p.startswith("v18/")]
-                for path in wrong:
-                    problems.append(
-                        "%s v17: wrongly points at %s" % (module_dir.name, path)
-                    )
+        data = manifest.get("data", [])
+        for path in [p for p in data if not (module_dir / p).exists()]:
+            problems.append(
+                "%s v%s: missing data file %s" % (module_dir.name, series, path)
+            )
 
-            print("  %-24s v%s  %2s data file(s), all present"
-                  % (module_dir.name, version, len(data)))
+        print("  %-22s v%s  version %-12s %2s data file(s)"
+              % (module_dir.name, series, version, len(data)))
 
     if problems:
         print("\nProblems:")
         for problem in problems:
             print("  " + problem)
         return 1
-    print("\nBoth manifests resolve cleanly on Odoo 17 and 18.")
+    print("\nAll manifests are literals Odoo will accept.")
     return 0
 
 

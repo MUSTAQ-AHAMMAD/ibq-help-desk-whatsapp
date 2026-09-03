@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FOR ODOO 18 - DO NOT EDIT.
+     Source: views\whatsapp_template_views.xml
+     Rebuild with tools/build_v18.py after editing the Odoo 17 file. -->
+<odoo>
+
+    <record id="view_whatsapp_template_tree" model="ir.ui.view">
+        <field name="name">whatsapp.template.tree</field>
+        <field name="model">whatsapp.template</field>
+        <field name="arch" type="xml">
+            <list string="WhatsApp Templates">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="content_sid"/>
+                <field name="model_id"/>
+                <field name="lang_code"/>
+                <field name="status" widget="badge"
+                       decoration-success="status == 'approved'"
+                       decoration-warning="status == 'pending'"
+                       decoration-danger="status == 'rejected'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_whatsapp_template_form" model="ir.ui.view">
+        <field name="name">whatsapp.template.form</field>
+        <field name="model">whatsapp.template</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Template">
+                <header>
+                    <button name="action_send_test" type="object"
+                            string="Send Test to Me" class="btn-secondary"/>
+                    <field name="status" widget="statusbar"
+                           statusbar_visible="draft,pending,approved"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ticket created"/></h1>
+                    </div>
+                    <div class="alert alert-info" role="alert"
+                         invisible="content_sid">
+                        No Content SID yet. Without one this template can only be
+                        delivered inside the 24h session window, as plain text.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="code" placeholder="ticket_created"/>
+                            <field name="content_sid" placeholder="HXxxxxxxxxxxxxxxxx"/>
+                            <field name="account_id"/>
+                        </group>
+                        <group>
+                            <field name="model_id"/>
+                            <field name="lang_code"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                    <group string="Body">
+                        <field name="body" nolabel="1" colspan="2"
+                               placeholder="Hi {{1}}, ticket #{{2}} is now {{3}}."/>
+                    </group>
+                    <notebook>
+                        <page string="Variables" name="variables">
+                            <field name="variable_ids">
+                                <list editable="bottom">
+                                    <field name="index"/>
+                                    <field name="name"/>
+                                    <field name="source_type"/>
+                                    <field name="field_path"
+                                           invisible="source_type == 'static'"
+                                           placeholder="partner_id.name"/>
+                                    <field name="static_value"
+                                           invisible="source_type != 'static'"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_whatsapp_template" model="ir.actions.act_window">
+        <field name="name">WhatsApp Templates</field>
+        <field name="res_model">whatsapp.template</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Mirror your approved templates</p>
+            <p>
+                WhatsApp only accepts free-form text within 24h of the customer's
+                last message. Everything proactive — acknowledgements, stage
+                updates, satisfaction requests — has to be an approved template.
+                Create it in Twilio's Content Template Builder, then record the
+                same body and its Content SID here.
+            </p>
+        </field>
+    </record>
+
+</odoo>

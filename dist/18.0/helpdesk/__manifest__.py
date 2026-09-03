@@ -15,7 +15,7 @@ It is deliberately NOT a helpdesk. Do not install it on a real database: on
 Enterprise the genuine ``helpdesk`` module provides all of this and much more,
 and having both would collide.
 """,
-    "version": "17.0.1.1.0",
+    "version": "18.0.1.1.0",
     "category": "Services/Helpdesk",
     "license": "LGPL-3",
     "depends": ["base", "mail"],
