@@ -6,8 +6,8 @@ configurable bot triages them, a ticket is opened, and agents answer straight
 from the ticket chatter.
 
 - **Module:** `ibq_whatsapp_helpdesk`
-- **Odoo:** 17.0 (see [Other Odoo versions](#other-odoo-versions))
-- **Version:** 17.0.2.0.0
+- **Odoo:** 17.0 and 18.0 from one folder (see [Odoo 17 and 18](#odoo-17-and-18))
+- **Version:** 17.0.3.1.0
 - **Depends:** `base`, `web`, `bus`, `mail`, `contacts`, `helpdesk`
 - **Python:** `requests`
 
@@ -712,37 +712,162 @@ the invite wizard.
 
 ---
 
-## Other Odoo versions
+## Odoo 17 and 18
 
-Written against **Odoo 17.0**. Two things to check when porting:
+One folder installs on both. `__manifest__.py` reads `odoo.release.version_info`
+and picks its view files accordingly:
 
-**Odoo 18+** renamed `<tree>` to `<list>`. The old tag still loads with a
-deprecation warning; rename them in `views/` for a clean run. Odoo 18 also
-renamed `check_access_rights` / `check_access_rule` to `check_access` — the one
-call site is `get_conversation()` in `models/whatsapp_dashboard.py`.
-
-**Helpdesk view IDs.** Three inherited views are referenced by XML ID. They are
-stable across 16–18, but verify before installing on anything else:
-
-```bash
-grep -rn "helpdesk_ticket_view_form\|helpdesk_team_view_form\|helpdesk_stage_view_form" /path/to/enterprise/helpdesk/views/
+```
+ibq_whatsapp_helpdesk/
+├── views/      ← Odoo 17 syntax. Canonical. Edit these.
+├── wizard/     ← Odoo 17 syntax. Canonical. Edit these.
+└── v18/
+    ├── views/  ← generated. Never hand-edit.
+    └── wizard/ ← generated. Never hand-edit.
 ```
 
-If a name differs, update `views/helpdesk_ticket_views.xml`.
+XML cannot branch on a version the way Python can, and Odoo 18 renamed four
+things this module uses:
 
-**Odoo Community.** `helpdesk` is an Enterprise app. To run this on OCA's
-`helpdesk_mgmt` instead, change three things:
+| Odoo 17 | Odoo 18 | Occurrences |
+|---|---|---|
+| `<tree>` | `<list>` | 36 |
+| `view_mode` `tree` | `list` | 17 |
+| `<t t-name="kanban-box">` | `<t t-name="card">` | 2 |
+| `<div class="oe_chatter">` | `<chatter/>` | 1 |
 
-1. `__manifest__.py` — swap the `helpdesk` dependency for `helpdesk_mgmt`.
-2. `models/whatsapp_conversation.py` — `_ticket_values()` and `_ensure_ticket()`
-   are the only places a ticket is created; retarget the model and field names
-   there.
-3. `views/helpdesk_ticket_views.xml` — repoint the three `inherit_id` refs.
+Everything else — all the Python, all the OWL, the security rules, the data
+files — is shared, because none of it uses anything that moved between the two.
 
-Everything else (accounts, conversations, messages, bot, templates, webhook) is
-independent of the helpdesk app.
+### After editing a view
+
+```bash
+python tools/build_v18.py
+```
+
+Two checks worth wiring into CI:
+
+```bash
+python tools/build_v18.py --check    # fails if v18/ is stale
+python tools/check_manifests.py      # evaluates both manifests under 17 and 18
+```
+
+`--check` is the one that matters: it is the difference between "we ported it"
+and "the port is still in step with the source".
 
 ---
+
+## Deploying
+
+### 1. Get the code onto the server
+
+```bash
+cd /opt/odoo/addons
+git clone -b feat/whatsapp-helpdesk-twilio https://github.com/MUSTAQ-AHAMMAD/ibq-help-desk-whatsapp.git
+```
+
+Then point Odoo at it. Only `ibq_whatsapp_helpdesk/` belongs in the addons
+path — **not** `demo/addons`, which contains a helpdesk stub that would collide
+with the real Enterprise app.
+
+```ini
+addons_path = /opt/odoo/odoo/addons,/opt/odoo/enterprise,/opt/odoo/addons/ibq-help-desk-whatsapp
+```
+
+### 2. Dependencies
+
+```bash
+pip install requests
+```
+
+### 3. Odoo configuration
+
+```ini
+proxy_mode = True
+workers = 4
+list_db = False
+admin_passwd = <something long>
+db_filter = ^yourdb$
+```
+
+Three things people get wrong:
+
+- **HTTPS is not optional.** Twilio refuses plain HTTP, and the signature is
+  computed over the exact URL. Behind a proxy set `proxy_mode = True`, or fill
+  **Public Base URL** on the account if the external URL differs.
+- **Proxy the gevent port (8072) for `/websocket`.** The dashboard's live
+  updates ride Odoo's bus; without it they silently fall back to slow polling.
+- **`workers > 0`**, or cron never runs — and the send queue and idle-close
+  both depend on it.
+
+Nginx, the parts that matter:
+
+```nginx
+location /websocket {
+    proxy_pass http://127.0.0.1:8072;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+}
+
+location / {
+    proxy_pass http://127.0.0.1:8069;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+}
+```
+
+### 4. Install
+
+Stop the server first — a running instance holds cron locks and the install
+will fail on them.
+
+```bash
+sudo systemctl stop odoo
+```
+
+```bash
+sudo -u odoo /opt/odoo/odoo-bin -c /etc/odoo/odoo.conf -d PRODDB -i ibq_whatsapp_helpdesk --stop-after-init
+```
+
+```bash
+sudo systemctl start odoo
+```
+
+Upgrades are the same with `-u` instead of `-i`.
+
+### 5. Configure
+
+**WhatsApp ▸ Configuration ▸ WhatsApp Accounts ▸ New** — Account SID, Auth
+Token, sender number, then **Test Connection**. Copy the two webhook URLs it
+shows into the Twilio console as **POST**. Add your team under
+**WhatsApp ▸ Team ▸ Add Team Members**, and paste each approved template's
+`HX…` Content SID into its record.
+
+### 6. Verify, in this order
+
+1. `curl https://your-odoo/whatsapp/twilio/health` → `ok: 1 WhatsApp account(s)`
+2. **Test Connection** on the account → *Connected*
+3. Message the number from a real phone → a conversation appears within a second
+4. Reply from the dashboard → it arrives on the phone
+5. Move the ticket through a stage that has a template → the customer gets it
+
+If step 3 does nothing, check the log for `invalid X-Twilio-Signature`. That is
+almost always `proxy_mode` or a mismatched **Public Base URL**.
+
+### Rollback
+
+```bash
+sudo -u odoo /opt/odoo/odoo-bin -c /etc/odoo/odoo.conf -d PRODDB --stop-after-init \
+  --load=base,web --without-demo=all
+```
+
+Uninstalling from **Apps** drops this module's tables and its columns on
+`helpdesk.ticket`. Take a database dump first — the conversation history lives
+in `whatsapp_message` and does not survive an uninstall.
 
 ## Layout
 
@@ -776,8 +901,39 @@ ibq_whatsapp_helpdesk/
 ├── wizard/whatsapp_invite_member.py    add team members from a menu
 ├── data/whatsapp_bot_data.xml        starter flow + draft templates
 ├── security/                         groups, ACLs, multi-company rules
+├── v18/                              generated Odoo 18 views (do not edit)
 └── tests/
+
+tools/
+├── build_v18.py                      generates v18/ from views/ and wizard/
+└── check_manifests.py                evaluates both manifests under 17 and 18
 ```
+
+## What is verified, and what is not
+
+| | Odoo 17 | Odoo 18 |
+|---|---|---|
+| Installs and runs | yes, repeatedly | **not yet executed** |
+| 157 tests | passing | not yet run |
+| Dashboard clicked through | yes | not yet |
+| Views port | n/a | generated and statically validated |
+| Manifest resolves | checked | checked |
+
+The Odoo 18 variant is a mechanical port of four renamed constructs, generated
+by `tools/build_v18.py` and checked for well-formedness, complete reference
+resolution and manifest correctness — but it has **not been installed on a real
+Odoo 18**. Run this before trusting it:
+
+```bash
+docker run --rm -d --name pg18 -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo -e POSTGRES_DB=postgres postgres:15
+```
+
+```bash
+docker run --rm --link pg18:db -v "$PWD:/mnt/project:ro" -v "$PWD/demo/addons:/mnt/demo:ro" odoo:18 odoo -d t18 --db_host=db --db_user=odoo --db_password=odoo --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/demo,/mnt/project -i ibq_whatsapp_helpdesk --without-demo=all --test-enable --stop-after-init
+```
+
+A clean run ends with `0 failed, 0 error(s)`. Anything else is a porting gap
+worth reporting.
 
 ## Known limits
 

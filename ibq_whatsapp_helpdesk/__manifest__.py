@@ -1,4 +1,28 @@
 # -*- coding: utf-8 -*-
+# One module, two Odoo versions.
+#
+# Odoo 18 renamed <tree> to <list>, the kanban card template, and the chatter,
+# and XML cannot branch on a version the way Python can. So the views/ files
+# are the Odoo 17 sources and v18/ holds the generated equivalents; this picks
+# between them at load time. Regenerate v18/ with tools/build_v18.py after
+# editing anything under views/ or wizard/.
+from odoo import release
+
+_V18 = release.version_info[0] >= 18
+
+
+def _views(paths):
+    """Point view and wizard paths at v18/ when running on Odoo 18+."""
+    if not _V18:
+        return paths
+    return [
+        "v18/" + path
+        if path.endswith(".xml") and path.split("/")[0] in ("views", "wizard")
+        else path
+        for path in paths
+    ]
+
+
 {
     "name": "IBQ WhatsApp Helpdesk (Twilio)",
     "summary": "Run a helpdesk over WhatsApp with Twilio: scripted bot, ticket "
@@ -44,7 +68,7 @@ The team
 * Customer satisfaction collected automatically when a handled chat closes.
 * A blocklist that drops inbound messages before any record is created.
 """,
-    "version": "17.0.3.0.0",
+    "version": "17.0.3.1.0",
     "category": "Services/Helpdesk",
     "author": "IBQ",
     "website": "https://github.com/ibq/ibq-help-desk-whatsapp",
@@ -60,7 +84,7 @@ The team
     "external_dependencies": {
         "python": ["requests"],
     },
-    "data": [
+    "data": _views([
         "security/whatsapp_security.xml",
         "security/ir.model.access.csv",
         "data/ir_cron.xml",
@@ -79,7 +103,7 @@ The team
         "wizard/whatsapp_invite_member_views.xml",
         "views/res_config_settings_views.xml",
         "views/whatsapp_menus.xml",
-    ],
+    ]),
     "assets": {
         "web.assets_backend": [
             "ibq_whatsapp_helpdesk/static/src/dashboard/**/*.scss",

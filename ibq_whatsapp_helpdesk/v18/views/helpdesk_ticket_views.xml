@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FILE - DO NOT EDIT.
+     Built from ../../views/helpdesk_ticket_views.xml by tools/build_v18.py for Odoo 18.
+     Edit the Odoo 17 source and re-run the script. -->
+<odoo>
+
+    <record id="view_helpdesk_ticket_form_whatsapp" model="ir.ui.view">
+        <field name="name">helpdesk.ticket.form.whatsapp</field>
+        <field name="model">helpdesk.ticket</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_ticket_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('oe_button_box')]" position="inside">
+                <button name="action_view_whatsapp_conversation" type="object"
+                        class="oe_stat_button" icon="fa-whatsapp"
+                        invisible="not whatsapp_conversation_id">
+                    <field name="whatsapp_message_count" widget="statinfo"
+                           string="WhatsApp"/>
+                </button>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_send_whatsapp" type="object"
+                        string="Send WhatsApp" class="btn-secondary"
+                        invisible="not whatsapp_number and not partner_id"/>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="whatsapp_number" invisible="not whatsapp_conversation_id"/>
+                <field name="whatsapp_conversation_id" invisible="1"/>
+                <field name="whatsapp_in_session" invisible="1"/>
+                <field name="whatsapp_transcript_synced" invisible="1"/>
+            </xpath>
+
+            <!-- The full transcript on the ticket itself. Appended to the
+                 sheet rather than added to a notebook page, because the
+                 helpdesk form does not have a notebook on every version. -->
+            <xpath expr="//sheet" position="inside">
+                <group string="WhatsApp Conversation" name="whatsapp_transcript"
+                       invisible="not whatsapp_conversation_id">
+                    <div colspan="2" class="d-flex align-items-center gap-2 mb-2">
+                        <span class="text-muted">
+                            <field name="whatsapp_message_count" class="oe_inline"/>
+                            message(s) with
+                            <field name="whatsapp_number" class="oe_inline" readonly="1" nolabel="1"/>
+                        </span>
+                        <button name="action_sync_whatsapp_transcript" type="object"
+                                string="Sync to Chatter" class="btn-link"
+                                icon="fa-refresh"
+                                invisible="whatsapp_transcript_synced"/>
+                        <span class="text-muted" invisible="not whatsapp_transcript_synced">
+                            <i class="fa fa-check text-success"/> also in the chatter
+                        </span>
+                    </div>
+                    <field name="whatsapp_message_ids" nolabel="1" colspan="2" readonly="1">
+                        <list create="false" delete="false" default_order="id"
+                              decoration-muted="direction == 'outbound'"
+                              decoration-info="is_bot"
+                              decoration-danger="state == 'failed'">
+                            <field name="create_date" string="When"/>
+                            <field name="direction"/>
+                            <field name="author_id" string="From" optional="show"/>
+                            <field name="body" string="Message"/>
+                            <field name="is_bot" string="Bot" optional="hide"/>
+                            <field name="state" widget="badge" optional="show"/>
+                        </list>
+                    </field>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_team_form_whatsapp" model="ir.ui.view">
+        <field name="name">helpdesk.team.form.whatsapp</field>
+        <field name="model">helpdesk.team</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_team_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="WhatsApp" name="whatsapp">
+                    <field name="whatsapp_account_id"/>
+                    <field name="whatsapp_relay_chatter"/>
+                    <field name="whatsapp_log_mode"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_helpdesk_stage_form_whatsapp" model="ir.ui.view">
+        <field name="name">helpdesk.stage.form.whatsapp</field>
+        <field name="model">helpdesk.stage</field>
+        <field name="inherit_id" ref="helpdesk.helpdesk_stage_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <group string="WhatsApp" name="whatsapp">
+                    <field name="whatsapp_template_id"/>
+                    <field name="whatsapp_close_conversation"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

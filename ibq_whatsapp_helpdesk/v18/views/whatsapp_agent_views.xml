@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FILE - DO NOT EDIT.
+     Built from ../../views/whatsapp_agent_views.xml by tools/build_v18.py for Odoo 18.
+     Edit the Odoo 17 source and re-run the script. -->
 <odoo>
 
     <record id="view_whatsapp_agent_tree" model="ir.ui.view">
         <field name="name">whatsapp.agent.tree</field>
         <field name="model">whatsapp.agent</field>
         <field name="arch" type="xml">
-            <tree string="WhatsApp Team" multi_edit="1"
+            <list string="WhatsApp Team" multi_edit="1"
                   decoration-muted="status == 'offline'">
                 <field name="sequence" widget="handle"/>
                 <field name="user_id"/>
@@ -26,7 +29,7 @@
                 <field name="account_ids" widget="many2many_tags" optional="hide"/>
                 <field name="phone" optional="show"/>
                 <field name="display_alias" optional="hide"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -38,7 +41,7 @@
                 <field name="status"/>
                 <field name="load_percent"/>
                 <templates>
-                    <t t-name="kanban-box">
+                    <t t-name="card">
                         <div class="oe_kanban_global_click">
                             <div class="o_kanban_record_top">
                                 <!-- Plain image URL rather than the kanban_image()
@@ -154,7 +157,7 @@
     <record id="action_whatsapp_agent" model="ir.actions.act_window">
         <field name="name">Team Members</field>
         <field name="res_model">whatsapp.agent</field>
-        <field name="view_mode">tree,kanban,form</field>
+        <field name="view_mode">list,kanban,form</field>
         <field name="search_view_id" ref="view_whatsapp_agent_search"/>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Build the WhatsApp team</p>
@@ -176,7 +179,7 @@
     <record id="action_whatsapp_department" model="ir.actions.act_window">
         <field name="name">Departments</field>
         <field name="res_model">helpdesk.team</field>
-        <field name="view_mode">kanban,tree,form</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Departments are helpdesk teams</p>
             <p>
