@@ -232,6 +232,40 @@ want it back.
 | Log shows `invalid X-Twilio-Signature` | `proxy_mode` not set, or **Public Base URL** does not match the URL Twilio actually calls. |
 | Dashboard loads but never updates live | The gevent port is not proxied for `/websocket`. |
 | Scheduled sends never leave | `workers = 0`, so cron does not run. |
+| `KeyError: 'mail_message_id'` during install | **Not this addon.** See below. |
+
+### `KeyError: 'mail_message_id'` (or any core field) during install
+
+`mail_message_id` is a core field the `mail` module defines on `mail.mail`,
+`mail.notification`, `mail.tracking.value` and `mail.message.schedule`. This
+addon never references it.
+
+The error means another module on the server extends a `mail.*` model without
+declaring `mail` in its manifest `depends`. Odoo loads modules in dependency
+order; such a module can load *after* `mail` by luck of the graph, and adding
+any new module reshuffles that order and exposes the bug. The database is not
+corrupt — the site keeps running, because the failure only happens during the
+install's registry rebuild.
+
+To find the offending module, run `tools/find-missing-mail-dep.sh` — shipped in
+this package — from your custom addons directory. It is read-only and safe on
+production:
+
+```bash
+cd /home/odoo/src/user          # or wherever your custom addons live
+bash /path/to/{{NAME}}/tools/find-missing-mail-dep.sh
+```
+
+It prints one line per module that touches a `mail.*` model:
+
+```
+crm_extension                    extends: mail.thread     depends: base,mail    ok
+some_custom_module               extends: mail.activity   depends: base         <<< MISSING mail -- THIS IS THE CULPRIT
+```
+
+Add `'mail'` to the flagged module's `depends`, upgrade just that module
+(`-u THAT_MODULE`), then install this addon. The same applies to any other core
+field name in the same error — the cause is always a missing dependency.
 
 Run the addon's own test suite against a scratch database if you want to confirm
 the install is sound — it needs no Twilio credentials:

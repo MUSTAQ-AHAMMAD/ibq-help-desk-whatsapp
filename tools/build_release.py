@@ -81,6 +81,12 @@ def build(series):
     (package / "LICENSE.txt").write_text(LICENSE, encoding="utf-8")
     shutil.copy2(ROOT / "README.md", package / "README.md")
 
+    # The diagnostic script the install guide points at.
+    tools_dir = package / "tools"
+    tools_dir.mkdir()
+    shutil.copy2(ROOT / "tools" / "find-missing-mail-dep.sh",
+                 tools_dir / "find-missing-mail-dep.sh")
+
     install_doc = ROOT / "tools" / "install_template.md"
     text = install_doc.read_text(encoding="utf-8")
     (package / "INSTALL.md").write_text(
@@ -136,7 +142,7 @@ def verify(package, archive, series):
             problems.append("zip is corrupt")
         names = zipped.namelist()
         for expected in ("INSTALL.md", "README.md", "LICENSE.txt",
-                         "requirements.txt"):
+                         "requirements.txt", "find-missing-mail-dep.sh"):
             if not any(n.endswith("/" + expected) for n in names):
                 problems.append("zip is missing %s" % expected)
 
