@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_conversation_tree" model="ir.ui.view">
         <field name="name">whatsapp.conversation.tree</field>
-        <field name="model">whatsapp.conversation</field>
+        <field name="model">ibq.whatsapp.conversation</field>
         <field name="arch" type="xml">
             <tree string="Conversations" decoration-bf="needs_reply" multi_edit="1">
                 <field name="priority" widget="priority" optional="show"/>
@@ -28,7 +28,7 @@
 
     <record id="view_whatsapp_conversation_form" model="ir.ui.view">
         <field name="name">whatsapp.conversation.form</field>
-        <field name="model">whatsapp.conversation</field>
+        <field name="model">ibq.whatsapp.conversation</field>
         <field name="arch" type="xml">
             <form string="Conversation">
                 <header>
@@ -113,7 +113,7 @@
 
     <record id="view_whatsapp_conversation_search" model="ir.ui.view">
         <field name="name">whatsapp.conversation.search</field>
-        <field name="model">whatsapp.conversation</field>
+        <field name="model">ibq.whatsapp.conversation</field>
         <field name="arch" type="xml">
             <search string="Conversations">
                 <field name="name"/>
@@ -146,7 +146,7 @@
 
     <record id="view_whatsapp_conversation_kanban" model="ir.ui.view">
         <field name="name">whatsapp.conversation.kanban</field>
-        <field name="model">whatsapp.conversation</field>
+        <field name="model">ibq.whatsapp.conversation</field>
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column" create="false">
                 <field name="state"/>
@@ -183,7 +183,7 @@
 
     <record id="action_whatsapp_conversation" model="ir.actions.act_window">
         <field name="name">Conversations</field>
-        <field name="res_model">whatsapp.conversation</field>
+        <field name="res_model">ibq.whatsapp.conversation</field>
         <field name="view_mode">kanban,tree,form</field>
         <field name="search_view_id" ref="view_whatsapp_conversation_search"/>
         <field name="context">{'search_default_open': 1}</field>
@@ -198,7 +198,7 @@
 
     <record id="action_whatsapp_conversation_waiting" model="ir.actions.act_window">
         <field name="name">Waiting for a Reply</field>
-        <field name="res_model">whatsapp.conversation</field>
+        <field name="res_model">ibq.whatsapp.conversation</field>
         <field name="view_mode">tree,kanban,form</field>
         <field name="domain">[('needs_reply', '=', True), ('state', '=', 'agent')]</field>
         <field name="search_view_id" ref="view_whatsapp_conversation_search"/>

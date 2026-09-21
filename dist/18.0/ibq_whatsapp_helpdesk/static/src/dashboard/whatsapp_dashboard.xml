@@ -1,0 +1,1371 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="ibq_whatsapp_helpdesk.WhatsappDashboard">
+    <div class="o_wa_dash">
+
+        <header class="o_wa_dash__bar">
+            <div class="o_wa_dash__title">
+                <span class="o_wa_dash__mark"/>
+                <div>
+                    <h1>WhatsApp</h1>
+                    <span class="o_wa_dash__sub" t-if="state.data">
+                        <t t-esc="live.waiting"/> waiting ·
+                        <t t-esc="live.open"/> open ·
+                        <t t-esc="live.agents_online"/> agent(s) available
+                    </span>
+                </div>
+            </div>
+
+            <nav class="o_wa_tabs" role="tablist">
+                <button t-foreach="tabs" t-as="tab" t-key="tab.key"
+                        class="o_wa_tab" role="tab"
+                        t-att-class="{ 'o_wa_tab--on': state.tab === tab.key }"
+                        t-on-click="() => this.setTab(tab.key)">
+                    <t t-esc="tab.label"/>
+                    <span class="o_wa_pip"
+                          t-if="tab.key === 'inbox' and live.waiting">
+                        <t t-esc="live.waiting"/>
+                    </span>
+                </button>
+            </nav>
+
+            <div class="o_wa_dash__right">
+                <div class="o_wa_presence" t-if="state.boot and state.boot.on_roster">
+                    <span class="o_wa_dot" t-att-class="'o_wa_dot--' + me.status"/>
+                    <select class="o_wa_select" aria-label="My presence"
+                            t-on-change="(ev) => this.setMyStatus(ev.target.value)">
+                        <option t-foreach="statuses" t-as="s" t-key="s.key"
+                                t-att-value="s.key" t-att-selected="me.status === s.key">
+                            <t t-esc="s.label"/>
+                        </option>
+                    </select>
+                    <span class="o_wa_rolechip" t-att-class="'o_wa_rolechip--' + me.role">
+                        <t t-esc="me.role_label"/>
+                    </span>
+                </div>
+                <span class="o_wa_rolechip o_wa_rolechip--none"
+                      t-if="state.boot and !state.boot.on_roster">
+                    Not on the roster
+                </span>
+            </div>
+        </header>
+
+        <FilterBar t-if="state.boot and ['overview', 'reports', 'inbox'].includes(state.tab)"
+                   filters="state.filters"
+                   periods="state.boot.periods"
+                   departments="state.boot.departments"
+                   agents="state.boot.agents"
+                   accounts="state.boot.accounts"
+                   tags="state.boot.tags"
+                   compact="state.tab === 'inbox'"
+                   onChange.bind="onFiltersChanged"/>
+
+        <div class="o_wa_dash__body">
+
+            <div class="o_wa_alert" t-if="state.error">
+                <t t-esc="state.error"/>
+            </div>
+
+            <div class="o_wa_loading" t-if="!state.ready or (state.loading and !state.data)">
+                Loading the last few days…
+            </div>
+            <t t-elif="state.tab === 'overview'">
+                <section class="o_wa_live">
+                    <button class="o_wa_live__item" t-on-click="() => this.setTab('inbox')">
+                        <span class="o_wa_live__n o_wa_live__n--alert"><t t-esc="live.waiting"/></span>
+                        <span class="o_wa_live__l">Waiting for a reply</span>
+                    </button>
+                    <button class="o_wa_live__item" t-on-click="() => this.setTab('monitor')">
+                        <span class="o_wa_live__n"><t t-esc="live.unassigned"/></span>
+                        <span class="o_wa_live__l">Unassigned</span>
+                    </button>
+                    <button class="o_wa_live__item" t-on-click="() => this.setTab('monitor')">
+                        <span class="o_wa_live__n"><t t-esc="live.with_bot"/></span>
+                        <span class="o_wa_live__l">With the bot</span>
+                    </button>
+                    <button class="o_wa_live__item" t-on-click="() => this.setTab('team')">
+                        <span class="o_wa_live__n"><t t-esc="live.agents_online"/></span>
+                        <span class="o_wa_live__l">Agents available</span>
+                    </button>
+                </section>
+
+                <section class="o_wa_kpis">
+                    <StatTile label="'Conversations'" value="kpi.conversations.value"
+                              delta="kpi.conversations.delta" hint="'started in this period'"/>
+                    <StatTile label="'Messages in'" value="kpi.inbound.value"
+                              delta="kpi.inbound.delta"/>
+                    <StatTile label="'Messages out'" value="kpi.outbound.value"
+                              delta="kpi.outbound.delta"/>
+                    <StatTile label="'Tickets opened'" value="kpi.tickets.value"
+                              delta="kpi.tickets.delta" hint="'from WhatsApp'"/>
+                    <StatTile label="'First response'"
+                              value="formatDuration(kpi.avg_response.value)"
+                              delta="kpi.avg_response.delta" lowerIsBetter="true"
+                              hint="'average, hand-off to reply'" emphasis="true"/>
+                    <StatTile label="'Satisfaction'"
+                              value="kpi.csat.value ? kpi.csat.value + '%' : '—'"
+                              delta="kpi.csat.delta"
+                              hint="kpi.csat.count + ' rating(s)'" emphasis="true"/>
+                    <StatTile label="'Handled by bot'" value="kpi.bot_rate.value + '%'"
+                              hint="'closed without an agent'"/>
+                    <StatTile label="'Time to close'"
+                              value="formatDuration(kpi.avg_resolution.value)"
+                              hint="'average, open to closed'"/>
+                    <StatTile label="'Failed sends'" value="kpi.failed.value"
+                              hint="'rejected by Twilio'"/>
+                </section>
+
+                <section class="o_wa_panels">
+                    <article class="o_wa_panel">
+                        <header class="o_wa_panel__head">
+                            <h2>Message volume</h2>
+                            <div class="o_wa_legend">
+                                <span><i class="o_wa_swatch o_wa_swatch--in"/>Inbound</span>
+                                <span><i class="o_wa_swatch o_wa_swatch--out"/>Outbound</span>
+                            </div>
+                        </header>
+                        <VolumeChart points="state.data.series.volume"/>
+                    </article>
+
+                    <article class="o_wa_panel">
+                        <header class="o_wa_panel__head">
+                            <h2>Where chats sit</h2>
+                        </header>
+                        <MixBar segments="state.data.series.mix"/>
+
+                        <h3 class="o_wa_panel__sub">Senders</h3>
+                        <ul class="o_wa_accounts">
+                            <li t-foreach="state.boot.accounts" t-as="account" t-key="account.id">
+                                <span class="o_wa_dot"
+                                      t-att-class="account.state === 'connected' ? 'o_wa_dot--available' : 'o_wa_dot--away'"/>
+                                <span class="o_wa_accounts__name"><t t-esc="account.name"/></span>
+                                <span class="o_wa_accounts__num"><t t-esc="account.number"/></span>
+                            </li>
+                            <li t-if="!state.boot.accounts.length" class="o_wa_muted">
+                                No Twilio sender configured yet.
+                            </li>
+                        </ul>
+                    </article>
+                </section>
+
+                <p class="o_wa_stamp">
+                    Updated <t t-esc="state.data.generated_at"/> UTC · refreshes every minute
+                </p>
+            </t>
+            <t t-elif="state.tab === 'monitor'">
+                <MonitorBoard onOpenConversation.bind="openConversation"
+                              canReassign="has('reassign')"/>
+            </t>
+            <t t-elif="state.tab === 'inbox'">
+                <ChatConsole agents="state.boot.agents"
+                             departments="state.boot.departments"
+                             tags="state.boot.tags"
+                             filters="state.filters"
+                             rights="state.boot.rights"
+                             openId="state.openId"/>
+            </t>
+            <t t-elif="state.tab === 'reports'">
+                <ReportsPanel filters="state.filters"
+                              canExport="has('export')"
+                              formatDuration.bind="formatDuration"/>
+            </t>
+            <t t-elif="state.tab === 'contacts'">
+                <ContactsPanel onOpenConversation.bind="openConversation"
+                               canBlock="has('block')"/>
+            </t>
+            <t t-else="">
+                <AgentRoster agents="state.boot.agents"
+                             departments="state.boot.departments"
+                             rights="state.boot.rights"
+                             myRole="me.role"
+                             onAgentsChanged.bind="onAgentsChanged"/>
+            </t>
+
+        </div>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.StatTile">
+    <div class="o_wa_tile" t-att-class="{ 'o_wa_tile--emphasis': props.emphasis }">
+        <span class="o_wa_tile__label"><t t-esc="props.label"/></span>
+        <div class="o_wa_tile__row">
+            <span class="o_wa_tile__value"><t t-esc="props.value"/></span>
+            <span class="o_wa_tile__delta" t-if="hasDelta" t-att-class="deltaClass">
+                <t t-esc="deltaLabel"/>
+            </span>
+        </div>
+        <span class="o_wa_tile__hint" t-if="props.hint"><t t-esc="props.hint"/></span>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.FilterBar">
+    <div class="o_wa_filters" t-att-class="{ 'o_wa_filters--compact': props.compact }">
+        <div class="o_wa_periods" t-if="!props.compact">
+            <button t-foreach="props.periods" t-as="p" t-key="p.key"
+                    class="o_wa_period"
+                    t-att-class="{ 'o_wa_period--on': props.filters.period === p.key }"
+                    t-on-click="() => this.setPeriod(p.key)">
+                <t t-esc="p.label"/>
+            </button>
+        </div>
+
+        <select class="o_wa_select" aria-label="Department"
+                t-on-change="(ev) => this.onSelect('team_id', ev)">
+            <option value="">All departments</option>
+            <option t-foreach="props.departments" t-as="d" t-key="d.id"
+                    t-att-value="d.id" t-att-selected="props.filters.team_id === d.id">
+                <t t-esc="d.name"/>
+            </option>
+        </select>
+
+        <select class="o_wa_select" aria-label="Agent"
+                t-on-change="(ev) => this.onSelect('user_id', ev)">
+            <option value="">All agents</option>
+            <option t-foreach="props.agents" t-as="a" t-key="a.id"
+                    t-att-value="a.user_id" t-att-selected="props.filters.user_id === a.user_id">
+                <t t-esc="a.name"/>
+            </option>
+        </select>
+
+        <select class="o_wa_select" aria-label="Sender" t-if="props.accounts.length &gt; 1"
+                t-on-change="(ev) => this.onSelect('account_id', ev)">
+            <option value="">All senders</option>
+            <option t-foreach="props.accounts" t-as="acc" t-key="acc.id"
+                    t-att-value="acc.id" t-att-selected="props.filters.account_id === acc.id">
+                <t t-esc="acc.name"/>
+            </option>
+        </select>
+
+        <div class="o_wa_tagfilter" t-if="props.tags.length">
+            <button class="o_wa_chipbtn"
+                    t-att-class="{ 'o_wa_chipbtn--on': state.tagsOpen }"
+                    t-on-click="() => (state.tagsOpen = !state.tagsOpen)">
+                Tags
+                <span t-if="props.filters.tag_ids.length">
+                    (<t t-esc="props.filters.tag_ids.length"/>)
+                </span>
+            </button>
+            <div class="o_wa_tagfilter__pop" t-if="state.tagsOpen">
+                <button t-foreach="props.tags" t-as="tag" t-key="tag.id"
+                        class="o_wa_chipbtn"
+                        t-att-class="{ 'o_wa_chipbtn--on': isTagOn(tag.id) }"
+                        t-on-click="() => this.toggleTag(tag.id)">
+                    <t t-esc="tag.name"/>
+                </button>
+            </div>
+        </div>
+
+        <button class="o_wa_btn o_wa_btn--ghost" t-if="activeCount"
+                t-on-click="clear">Clear (<t t-esc="activeCount"/>)</button>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.VolumeChart">
+    <div class="o_wa_chart">
+        <p class="o_wa_muted o_wa_chart__empty" t-if="isEmpty">
+            No messages in this period yet.
+        </p>
+        <svg t-else="" t-att-viewBox="viewBox" class="o_wa_chart__svg"
+             preserveAspectRatio="xMidYMid meet" role="img"
+             aria-label="Daily inbound and outbound message volume">
+            <g class="o_wa_chart__grid">
+                <t t-foreach="gridLines" t-as="line" t-key="line_index">
+                    <line t-att-x1="line.x1" t-att-x2="line.x2"
+                          t-att-y1="line.y" t-att-y2="line.y"
+                          t-att-class="line.major ? 'o_wa_grid--axis' : ''"/>
+                    <text t-att-x="line.x1 - 7" t-att-y="line.y + 3.5"
+                          class="o_wa_chart__tick" text-anchor="end">
+                        <t t-esc="line.label"/>
+                    </text>
+                </t>
+            </g>
+            <g>
+                <t t-foreach="bars" t-as="bar" t-key="bar.key">
+                    <rect class="o_wa_bar o_wa_bar--in"
+                          t-att-x="bar.inbound.x" t-att-y="bar.inbound.y"
+                          t-att-width="bar.inbound.width" t-att-height="bar.inbound.height"
+                          rx="1.5">
+                        <title><t t-esc="bar.label"/> — <t t-esc="bar.inbound.value"/> inbound</title>
+                    </rect>
+                    <rect class="o_wa_bar o_wa_bar--out"
+                          t-att-x="bar.outbound.x" t-att-y="bar.outbound.y"
+                          t-att-width="bar.outbound.width" t-att-height="bar.outbound.height"
+                          rx="1.5">
+                        <title><t t-esc="bar.label"/> — <t t-esc="bar.outbound.value"/> outbound</title>
+                    </rect>
+                    <text t-if="bar.showLabel" t-att-x="bar.labelX" t-att-y="axisY"
+                          class="o_wa_chart__tick" text-anchor="middle">
+                        <t t-esc="bar.short"/>
+                    </text>
+                </t>
+            </g>
+        </svg>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.MixBar">
+    <div class="o_wa_mix">
+        <div class="o_wa_mix__bar">
+            <span t-foreach="rows" t-as="row" t-key="row.key"
+                  t-att-class="'o_wa_mix__seg o_wa_mix__seg--' + row.key"
+                  t-att-style="'width:' + row.width + '%'"
+                  t-att-title="row.label + ': ' + row.value"/>
+        </div>
+        <ul class="o_wa_mix__legend">
+            <li t-foreach="rows" t-as="row" t-key="row.key">
+                <i t-att-class="'o_wa_swatch o_wa_swatch--' + row.key"/>
+                <span class="o_wa_mix__label"><t t-esc="row.label"/></span>
+                <span class="o_wa_mix__value"><t t-esc="row.value"/></span>
+                <span class="o_wa_mix__pct"><t t-esc="row.percent"/>%</span>
+            </li>
+        </ul>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.MonitorBoard">
+    <section class="o_wa_monitor">
+        <div class="o_wa_monitor__cols">
+            <article t-foreach="state.columns" t-as="col" t-key="col.key"
+                     class="o_wa_mcol" t-att-class="'o_wa_mcol--' + col.key">
+                <header class="o_wa_mcol__head">
+                    <h2><t t-esc="col.label"/></h2>
+                    <span class="o_wa_mcol__n"><t t-esc="col.count"/></span>
+                </header>
+                <div class="o_wa_mcol__list">
+                    <p class="o_wa_muted o_wa_mcol__empty" t-if="!col.conversations.length">
+                        Nothing here.
+                    </p>
+                    <div t-foreach="col.conversations" t-as="conv" t-key="conv.id"
+                         class="o_wa_mcard"
+                         t-att-class="'o_wa_mcard--p' + conv.priority">
+                        <div class="o_wa_mcard__top">
+                            <span class="o_wa_mcard__name"><t t-esc="conv.partner"/></span>
+                            <span class="o_wa_mcard__age" t-att-class="ageClass(conv)">
+                                <t t-esc="ageLabel(conv)"/>
+                            </span>
+                        </div>
+                        <p class="o_wa_mcard__preview"><t t-esc="conv.preview"/></p>
+                        <div class="o_wa_mcard__tags" t-if="conv.tags.length">
+                            <span t-foreach="conv.tags" t-as="tag" t-key="tag.id"
+                                  class="o_wa_tagchip"><t t-esc="tag.name"/></span>
+                        </div>
+                        <div class="o_wa_mcard__foot">
+                            <span class="o_wa_muted">
+                                <t t-if="conv.user_name"><t t-esc="conv.user_name"/></t>
+                                <t t-else="">Unassigned</t>
+                            </span>
+                            <span class="o_wa_mcard__acts">
+                                <button class="o_wa_btn o_wa_btn--tiny"
+                                        t-on-click="() => this.props.onOpenConversation(conv.id)">
+                                    Open
+                                </button>
+                                <button class="o_wa_btn o_wa_btn--tiny o_wa_btn--primary"
+                                        t-if="!conv.user_id"
+                                        t-on-click="() => this.claim(conv)">Claim</button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        </div>
+
+        <aside class="o_wa_shift">
+            <header class="o_wa_panel__head">
+                <h2>On shift</h2>
+                <span class="o_wa_muted"><t t-esc="state.stamp"/></span>
+            </header>
+            <ul class="o_wa_shift__list">
+                <li t-foreach="onShift" t-as="agent" t-key="agent.id" class="o_wa_shift__row">
+                    <img t-att-src="agent.avatar" t-att-alt="agent.name"/>
+                    <div class="o_wa_shift__body">
+                        <div class="o_wa_shift__top">
+                            <span class="o_wa_shift__name"><t t-esc="agent.name"/></span>
+                            <span class="o_wa_dot" t-att-class="'o_wa_dot--' + agent.status"/>
+                        </div>
+                        <div class="o_wa_load">
+                            <div class="o_wa_load__fill" t-att-class="loadClass(agent)"
+                                 t-att-style="'width:' + agent.load_percent + '%'"/>
+                        </div>
+                        <span class="o_wa_shift__meta">
+                            <t t-esc="agent.active_chats"/>/<t t-esc="agent.capacity"/> chats
+                            <t t-if="agent.waiting_chats"> · <t t-esc="agent.waiting_chats"/> waiting</t>
+                        </span>
+                    </div>
+                </li>
+                <li t-if="!state.agents.length" class="o_wa_muted">
+                    Nobody is on the roster yet.
+                </li>
+            </ul>
+        </aside>
+    </section>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.ChatConsole">
+    <section class="o_wa_console">
+
+        <aside class="o_wa_queue">
+            <div class="o_wa_queue__scopes">
+                <button t-foreach="scopes" t-as="s" t-key="s.key"
+                        class="o_wa_scope"
+                        t-att-class="{ 'o_wa_scope--on': state.scope === s.key }"
+                        t-on-click="() => this.setScope(s.key)">
+                    <t t-esc="s.label"/>
+                    <span class="o_wa_scope__n" t-if="state.counts[s.key]">
+                        <t t-esc="state.counts[s.key]"/>
+                    </span>
+                </button>
+            </div>
+
+            <input type="search" class="o_wa_input o_wa_queue__search"
+                   placeholder="Search name, number or message…"
+                   t-att-value="state.search" t-on-input="onSearch"/>
+
+            <div class="o_wa_queue__list">
+                <p class="o_wa_muted o_wa_queue__empty" t-if="!state.conversations.length">
+                    Nothing here.
+                </p>
+                <button t-foreach="state.conversations" t-as="conv" t-key="conv.id"
+                        class="o_wa_conv"
+                        t-att-class="{
+                            'o_wa_conv--on': state.active and state.active.id === conv.id,
+                            'o_wa_conv--alert': conv.needs_reply,
+                        }"
+                        t-on-click="() => this.openConversation(conv.id)">
+                    <img class="o_wa_conv__avatar" t-if="conv.avatar" t-att-src="conv.avatar" alt=""/>
+                    <span class="o_wa_conv__avatar o_wa_conv__avatar--blank" t-else="">
+                        <t t-esc="conv.partner.slice(0, 1)"/>
+                    </span>
+                    <div class="o_wa_conv__body">
+                        <div class="o_wa_conv__top">
+                            <span class="o_wa_conv__name">
+                                <span class="o_wa_prio" t-if="conv.priority === '3'" title="Urgent">!!</span>
+                                <span class="o_wa_prio" t-elif="conv.priority === '2'" title="High">!</span>
+                                <t t-esc="conv.partner"/>
+                            </span>
+                            <span class="o_wa_conv__time"><t t-esc="relative(conv.last_message_date)"/></span>
+                        </div>
+                        <div class="o_wa_conv__bottom">
+                            <span class="o_wa_conv__preview">
+                                <t t-if="conv.last_direction === 'outbound'">↩ </t>
+                                <t t-esc="conv.preview"/>
+                            </span>
+                            <span class="o_wa_pip" t-if="conv.needs_reply">!</span>
+                        </div>
+                        <div class="o_wa_conv__meta">
+                            <span class="o_wa_tag" t-att-class="'o_wa_tag--' + conv.state">
+                                <t t-esc="stateLabel(conv.state)"/>
+                            </span>
+                            <span t-foreach="conv.tags" t-as="tag" t-key="tag.id"
+                                  class="o_wa_tagchip"><t t-esc="tag.name"/></span>
+                            <span class="o_wa_muted" t-if="conv.user_name"><t t-esc="conv.user_name"/></span>
+                            <span class="o_wa_muted" t-else="">Unassigned</span>
+                        </div>
+                    </div>
+                </button>
+            </div>
+        </aside>
+
+        <div class="o_wa_thread">
+            <div class="o_wa_thread__empty" t-if="!state.active">
+                <p>Pick a conversation to read and reply.</p>
+                <p class="o_wa_muted">
+                    Replies go out on WhatsApp and are mirrored into the linked ticket,
+                    so the ticket keeps the whole history. Type <b>/</b> in the composer
+                    to insert a saved reply.
+                </p>
+            </div>
+            <t t-else="">
+                <header class="o_wa_thread__head">
+                    <div class="o_wa_thread__who">
+                        <img t-if="state.active.avatar" t-att-src="state.active.avatar" alt=""/>
+                        <div>
+                            <span class="o_wa_thread__name">
+                                <t t-esc="state.active.partner or state.active.profile_name or state.active.number"/>
+                            </span>
+                            <span class="o_wa_thread__num">
+                                <t t-esc="state.active.number"/>
+                                <span class="o_wa_tag" t-att-class="'o_wa_tag--' + state.active.state">
+                                    <t t-esc="stateLabel(state.active.state)"/>
+                                </span>
+                                <span class="o_wa_stars" t-if="state.active.rating"
+                                      t-att-title="'Customer rated this ' + state.active.rating.score + '/5'">
+                                    <t t-esc="stars(state.active.rating.score)"/>
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="o_wa_thread__tools">
+                        <select class="o_wa_select" aria-label="Priority" t-on-change="setPriority">
+                            <option t-foreach="priorities" t-as="p" t-key="p.key"
+                                    t-att-value="p.key"
+                                    t-att-selected="state.active.priority === p.key">
+                                <t t-esc="p.label"/>
+                            </option>
+                        </select>
+                        <select class="o_wa_select" aria-label="Assigned agent" t-on-change="assign">
+                            <option value="">Unassigned</option>
+                            <option t-foreach="props.agents" t-as="agent" t-key="agent.id"
+                                    t-att-value="agent.user_id"
+                                    t-att-selected="state.active.user_id === agent.user_id">
+                                <t t-esc="agent.name"/>
+                            </option>
+                        </select>
+                        <button class="o_wa_btn" t-if="has('transfer')"
+                                t-on-click="toggleTransfer">Transfer</button>
+                        <button class="o_wa_btn" t-if="state.active.state === 'bot'"
+                                t-on-click="() => this.act('take_over')">Take over</button>
+                        <button class="o_wa_btn" t-if="state.active.ticket_id"
+                                t-on-click="openTicket">
+                            <t t-esc="state.active.ticket_name"/>
+                        </button>
+                        <button class="o_wa_btn" t-if="state.active.needs_reply"
+                                t-on-click="() => this.act('mark_handled')">Mark handled</button>
+                        <button class="o_wa_btn"
+                                t-if="state.active.state === 'closed' and !state.active.rating"
+                                t-on-click="() => this.act('ask_rating')">Ask for a rating</button>
+                        <button class="o_wa_btn" t-if="state.active.state !== 'closed'"
+                                t-on-click="() => this.act('close')">Close</button>
+                        <button class="o_wa_btn" t-else=""
+                                t-on-click="() => this.act('reopen')">Reopen</button>
+                    </div>
+                </header>
+
+                <div class="o_wa_transfer" t-if="state.showTransfer">
+                    <span class="o_wa_transfer__l">Transfer to</span>
+                    <select class="o_wa_select" t-model="state.transferUser">
+                        <option value="">Keep the agent</option>
+                        <option t-foreach="props.agents" t-as="agent" t-key="agent.id"
+                                t-att-value="agent.user_id"><t t-esc="agent.name"/></option>
+                    </select>
+                    <select class="o_wa_select" t-model="state.transferTeam">
+                        <option value="">Keep the department</option>
+                        <option t-foreach="props.departments" t-as="d" t-key="d.id"
+                                t-att-value="d.id"><t t-esc="d.name"/></option>
+                    </select>
+                    <button class="o_wa_btn o_wa_btn--primary"
+                            t-on-click="confirmTransfer">Transfer</button>
+                    <button class="o_wa_btn o_wa_btn--ghost"
+                            t-on-click="toggleTransfer">Cancel</button>
+                </div>
+
+                <div class="o_wa_thread__grid">
+                    <div class="o_wa_thread__main">
+                        <div class="o_wa_thread__scroll" t-ref="thread">
+                            <div t-foreach="state.active.messages" t-as="msg" t-key="msg.id"
+                                 class="o_wa_msg"
+                                 t-att-class="msg.direction === 'inbound' ? 'o_wa_msg--in' : 'o_wa_msg--out'">
+                                <div class="o_wa_msg__bubble"
+                                     t-att-class="{ 'o_wa_msg__bubble--bot': msg.is_bot, 'o_wa_msg__bubble--failed': msg.state === 'failed' }">
+                                    <p class="o_wa_msg__body"><t t-esc="msg.body"/></p>
+                                    <div class="o_wa_msg__files" t-if="msg.attachments.length">
+                                        <a t-foreach="msg.attachments" t-as="file" t-key="file.id"
+                                           class="o_wa_file"
+                                           t-att-href="'/web/content/' + file.id + '?download=true'">
+                                            <t t-esc="file.name"/>
+                                        </a>
+                                    </div>
+                                    <span class="o_wa_msg__meta">
+                                        <t t-if="msg.is_bot">bot · </t>
+                                        <t t-elif="msg.author and msg.direction === 'outbound'">
+                                            <t t-esc="msg.author"/> ·
+                                        </t>
+                                        <t t-esc="formatTime(msg.date)"/>
+                                        <t t-if="msg.direction === 'outbound'"> · <t t-esc="msg.state"/></t>
+                                    </span>
+                                    <span class="o_wa_msg__error" t-if="msg.error"><t t-esc="msg.error"/></span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <footer class="o_wa_composer">
+                            <p class="o_wa_composer__hint" t-if="composerHint">
+                                <t t-esc="composerHint"/>
+                            </p>
+
+                            <div class="o_wa_canned" t-if="state.showCanned">
+                                <p class="o_wa_canned__l">Saved replies</p>
+                                <button t-foreach="state.canned" t-as="canned" t-key="canned.id"
+                                        class="o_wa_canned__row"
+                                        t-on-click="() => this.insertCanned(canned)">
+                                    <span class="o_wa_canned__key">/<t t-esc="canned.shortcut"/></span>
+                                    <span class="o_wa_canned__name"><t t-esc="canned.name"/></span>
+                                    <span class="o_wa_canned__body"><t t-esc="canned.body"/></span>
+                                </button>
+                                <p class="o_wa_muted" t-if="!state.canned.length">
+                                    Nothing saved yet. Add replies under Configuration ▸ Saved Replies.
+                                </p>
+                            </div>
+
+                            <div class="o_wa_composer__row">
+                                <textarea t-ref="composer" class="o_wa_composer__input"
+                                          rows="2" placeholder="Type a reply, / for a saved one, Enter to send…"
+                                          t-att-disabled="!canSend"
+                                          t-att-value="state.draft"
+                                          t-on-input="onComposerInput"
+                                          t-on-keydown="onComposerKeydown"/>
+                                <div class="o_wa_composer__side">
+                                    <button class="o_wa_btn o_wa_btn--tiny"
+                                            t-att-disabled="!canSend"
+                                            t-on-click="toggleCanned" title="Saved replies">/</button>
+                                    <button class="o_wa_btn o_wa_btn--primary o_wa_composer__send"
+                                            t-att-disabled="!canSend or state.sending or !state.draft.trim()"
+                                            t-on-click="send">
+                                        <t t-esc="state.sending ? 'Sending…' : 'Send'"/>
+                                    </button>
+                                </div>
+                            </div>
+                        </footer>
+                    </div>
+
+                    <aside class="o_wa_side">
+                        <nav class="o_wa_side__tabs">
+                            <button class="o_wa_side__tab"
+                                    t-att-class="{ 'o_wa_side__tab--on': state.panel === 'context' }"
+                                    t-on-click="() => (state.panel = 'context')">Context</button>
+                            <button class="o_wa_side__tab"
+                                    t-att-class="{ 'o_wa_side__tab--on': state.panel === 'notes' }"
+                                    t-on-click="() => (state.panel = 'notes')">
+                                Notes
+                                <span t-if="state.active.notes.length">
+                                    (<t t-esc="state.active.notes.length"/>)
+                                </span>
+                            </button>
+                        </nav>
+
+                        <div class="o_wa_side__body" t-if="state.panel === 'context'">
+                            <h3 class="o_wa_side__h">Tags</h3>
+                            <div class="o_wa_side__tags">
+                                <button t-foreach="props.tags" t-as="tag" t-key="tag.id"
+                                        class="o_wa_chipbtn"
+                                        t-att-class="{ 'o_wa_chipbtn--on': hasTag(tag) }"
+                                        t-on-click="() => this.toggleTag(tag)">
+                                    <t t-esc="tag.name"/>
+                                </button>
+                                <p class="o_wa_muted" t-if="!props.tags.length">
+                                    No tags defined yet.
+                                </p>
+                            </div>
+
+                            <h3 class="o_wa_side__h" t-if="answerRows.length">What the bot collected</h3>
+                            <dl class="o_wa_answers" t-if="answerRows.length">
+                                <t t-foreach="answerRows" t-as="row" t-key="row.key">
+                                    <dt><t t-esc="row.label"/></dt>
+                                    <dd><t t-esc="row.value"/></dd>
+                                </t>
+                            </dl>
+
+                            <h3 class="o_wa_side__h">Details</h3>
+                            <dl class="o_wa_answers">
+                                <dt>Department</dt>
+                                <dd><t t-esc="state.active.team_name or '—'"/></dd>
+                                <dt>Priority</dt>
+                                <dd><t t-esc="priorityLabel(state.active.priority)"/></dd>
+                                <dt>Session</dt>
+                                <dd>
+                                    <t t-if="state.active.in_session">open until <t t-esc="state.active.session_expiry"/></t>
+                                    <t t-else="">expired</t>
+                                </dd>
+                                <dt t-if="state.active.rating">Rating</dt>
+                                <dd t-if="state.active.rating">
+                                    <t t-esc="stars(state.active.rating.score)"/>
+                                </dd>
+                            </dl>
+                        </div>
+
+                        <div class="o_wa_side__body" t-else="">
+                            <div class="o_wa_notes">
+                                <div t-foreach="state.active.notes" t-as="note" t-key="note.id"
+                                     class="o_wa_note">
+                                    <span class="o_wa_note__who"><t t-esc="note.author"/></span>
+                                    <p class="o_wa_note__body"><t t-esc="note.body"/></p>
+                                    <span class="o_wa_note__date"><t t-esc="formatTime(note.date)"/></span>
+                                </div>
+                                <p class="o_wa_muted" t-if="!state.active.notes.length">
+                                    No notes yet. Notes stay in Odoo and never reach the customer.
+                                </p>
+                            </div>
+                            <div class="o_wa_note__new">
+                                <textarea class="o_wa_input" rows="3"
+                                          placeholder="Internal note…"
+                                          t-model="state.note"/>
+                                <button class="o_wa_btn o_wa_btn--primary"
+                                        t-att-disabled="!state.note.trim()"
+                                        t-on-click="addNote">Add note</button>
+                            </div>
+                        </div>
+                    </aside>
+                </div>
+            </t>
+        </div>
+    </section>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.ReportsPanel">
+    <section class="o_wa_reports">
+        <div class="o_wa_loading" t-if="state.loading">Crunching the numbers…</div>
+        <t t-else="">
+            <article class="o_wa_panel">
+                <header class="o_wa_panel__head">
+                    <h2>Agent performance</h2>
+                    <button class="o_wa_btn o_wa_btn--tiny" t-if="props.canExport"
+                            t-att-disabled="state.exporting"
+                            t-on-click="() => this.exportCsv('leaderboard')">Export CSV</button>
+                </header>
+                <div class="o_wa_tablewrap">
+                    <table class="o_wa_table">
+                        <thead>
+                            <tr>
+                                <th>Agent</th>
+                                <th class="o_wa_num">Handled</th>
+                                <th class="o_wa_num">First response</th>
+                                <th class="o_wa_num">Time to close</th>
+                                <th class="o_wa_num">Ratings</th>
+                                <th class="o_wa_num">CSAT</th>
+                                <th class="o_wa_num">Open now</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="leaderboard" t-as="row" t-key="row.user_id">
+                                <td>
+                                    <div class="o_wa_person">
+                                        <img t-att-src="row.avatar" t-att-alt="row.name"/>
+                                        <div>
+                                            <span class="o_wa_person__name"><t t-esc="row.name"/></span>
+                                            <span class="o_wa_person__mail"><t t-esc="row.role"/></span>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="o_wa_num"><t t-esc="row.handled"/></td>
+                                <td class="o_wa_num"><t t-esc="props.formatDuration(row.avg_response)"/></td>
+                                <td class="o_wa_num"><t t-esc="props.formatDuration(row.avg_resolution)"/></td>
+                                <td class="o_wa_num"><t t-esc="row.rating_count"/></td>
+                                <td class="o_wa_num">
+                                    <span t-if="row.rating_count"
+                                          class="o_wa_badge"
+                                          t-att-class="row.csat >= 80 ? 'o_wa_badge--good' : (row.csat >= 60 ? 'o_wa_badge--mid' : 'o_wa_badge--alert')">
+                                        <t t-esc="row.csat"/>%
+                                    </span>
+                                    <span t-else="" class="o_wa_muted">—</span>
+                                </td>
+                                <td class="o_wa_num"><t t-esc="row.open_now"/></td>
+                            </tr>
+                            <tr t-if="!leaderboard.length">
+                                <td colspan="7" class="o_wa_muted">
+                                    No chats reached an agent in this period.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+            <article class="o_wa_panel">
+                <header class="o_wa_panel__head">
+                    <h2>What people contact you about</h2>
+                    <div class="o_wa_exportgroup" t-if="props.canExport">
+                        <span class="o_wa_exportgroup__l">Export</span>
+                        <button class="o_wa_btn o_wa_btn--tiny"
+                                t-att-disabled="state.exporting"
+                                title="One row per issue: type, times raised, customers, timings, ratings, tags"
+                                t-on-click="() => this.exportCsv('issues')">Issues</button>
+                        <button class="o_wa_btn o_wa_btn--tiny"
+                                t-att-disabled="state.exporting"
+                                title="One row per chat, carrying its issue and type — the file you pivot"
+                                t-on-click="() => this.exportCsv('issue_details')">Issue details</button>
+                    </div>
+                </header>
+
+                <div class="o_wa_issuestats">
+                    <div class="o_wa_issuestat">
+                        <span class="o_wa_issuestat__n"><t t-esc="issues.distinct_count"/></span>
+                        <span class="o_wa_issuestat__l">distinct issues</span>
+                    </div>
+                    <div class="o_wa_issuestat">
+                        <span class="o_wa_issuestat__n o_wa_issuestat__n--alert">
+                            <t t-esc="issues.repeated_count"/>
+                        </span>
+                        <span class="o_wa_issuestat__l">repeated</span>
+                        <span class="o_wa_issuestat__h">
+                            <t t-esc="issues.repeat_share"/>% of all chats
+                        </span>
+                    </div>
+                    <div class="o_wa_issuestat">
+                        <span class="o_wa_issuestat__n"><t t-esc="issues.unique_count"/></span>
+                        <span class="o_wa_issuestat__l">one-offs</span>
+                    </div>
+                    <div class="o_wa_issuestat">
+                        <span class="o_wa_issuestat__n"><t t-esc="issues.repeat_contacts"/></span>
+                        <span class="o_wa_issuestat__l">customers who came back</span>
+                        <span class="o_wa_issuestat__h">of <t t-esc="issues.contacts"/></span>
+                    </div>
+                </div>
+
+                <div class="o_wa_tablewrap">
+                    <table class="o_wa_table">
+                        <thead>
+                            <tr>
+                                <th>Issue</th>
+                                <th/>
+                                <th class="o_wa_num">Raised</th>
+                                <th class="o_wa_num">Customers</th>
+                                <th class="o_wa_num">Still open</th>
+                                <th class="o_wa_num">Avg close</th>
+                                <th class="o_wa_num">Rating</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr t-foreach="issues.rows" t-as="row" t-key="row.id"
+                                class="o_wa_issuerow"
+                                t-on-click="() => this.openIssue(row)">
+                                <td>
+                                    <span class="o_wa_issue__name"><t t-esc="row.name"/></span>
+                                    <span t-foreach="row.tags" t-as="tag" t-key="tag"
+                                          class="o_wa_tagchip"><t t-esc="tag"/></span>
+                                </td>
+                                <td>
+                                    <span class="o_wa_barlist__track o_wa_issue__bar">
+                                        <span class="o_wa_barlist__fill"
+                                              t-att-class="row.kind === 'repeated' ? '' : 'o_wa_issue__fill--one'"
+                                              t-att-style="'width:' + (row.count / issueMax * 100) + '%'"/>
+                                    </span>
+                                </td>
+                                <td class="o_wa_num">
+                                    <b t-if="row.kind === 'repeated'"><t t-esc="row.count"/></b>
+                                    <t t-else=""><t t-esc="row.count"/></t>
+                                </td>
+                                <td class="o_wa_num"><t t-esc="row.contacts"/></td>
+                                <td class="o_wa_num">
+                                    <span t-att-class="row.open ? 'o_wa_badge o_wa_badge--alert' : ''">
+                                        <t t-esc="row.open"/>
+                                    </span>
+                                </td>
+                                <td class="o_wa_num">
+                                    <t t-esc="props.formatDuration(row.avg_resolution)"/>
+                                </td>
+                                <td class="o_wa_num o_wa_stars">
+                                    <t t-if="row.rating"><t t-esc="row.rating"/></t>
+                                    <span t-else="" class="o_wa_muted">—</span>
+                                </td>
+                            </tr>
+                            <tr t-if="!issues.rows.length">
+                                <td colspan="7" class="o_wa_muted">
+                                    Nothing classified yet in this period.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <p class="o_wa_muted">
+                    <t t-if="issuesHidden">
+                        Showing the top <t t-esc="issuesShown"/> of
+                        <t t-esc="issues.distinct_count"/> issues; the export has
+                        all of them.
+                    </t>
+                    <t t-if="issues.unclassified">
+                        <t t-esc="issues.unclassified"/> chat(s) had too little text
+                        to classify — usually the ones that never got past "hello".
+                    </t>
+                </p>
+            </article>
+
+            <div class="o_wa_reports__grid">
+                <article class="o_wa_panel">
+                    <header class="o_wa_panel__head">
+                        <h2>When the queue is busy</h2>
+                        <span class="o_wa_muted" t-if="!state.reports.heatmap.total">no data</span>
+                    </header>
+                    <Heatmap data="state.reports.heatmap"/>
+                </article>
+
+                <article class="o_wa_panel">
+                    <header class="o_wa_panel__head">
+                        <h2>How long customers wait</h2>
+                        <span class="o_wa_muted"><t t-esc="buckets.total"/> chat(s)</span>
+                    </header>
+                    <ul class="o_wa_barlist">
+                        <li t-foreach="buckets.rows" t-as="row" t-key="row.label">
+                            <span class="o_wa_barlist__l"><t t-esc="row.label"/></span>
+                            <span class="o_wa_barlist__track">
+                                <span class="o_wa_barlist__fill"
+                                      t-att-style="'width:' + row.percent + '%'"/>
+                            </span>
+                            <span class="o_wa_barlist__v"><t t-esc="row.value"/></span>
+                        </li>
+                    </ul>
+                </article>
+
+                <article class="o_wa_panel">
+                    <header class="o_wa_panel__head">
+                        <h2>Satisfaction</h2>
+                        <button class="o_wa_btn o_wa_btn--tiny" t-if="props.canExport"
+                                t-on-click="() => this.exportCsv('csat')">Export CSV</button>
+                    </header>
+                    <div class="o_wa_csat__head" t-if="csat.total">
+                        <span class="o_wa_csat__avg"><t t-esc="csat.average"/></span>
+                        <span class="o_wa_muted">
+                            average over <t t-esc="csat.total"/> rating(s) ·
+                            <t t-esc="csat.happy_percent"/>% happy
+                        </span>
+                    </div>
+                    <ul class="o_wa_barlist">
+                        <li t-foreach="csat.distribution" t-as="row" t-key="row.score">
+                            <span class="o_wa_barlist__l"><t t-esc="row.score"/> ★</span>
+                            <span class="o_wa_barlist__track">
+                                <span class="o_wa_barlist__fill" t-att-class="csatClass(row.score)"
+                                      t-att-style="'width:' + row.percent + '%'"/>
+                            </span>
+                            <span class="o_wa_barlist__v"><t t-esc="row.count"/></span>
+                        </li>
+                    </ul>
+                    <div class="o_wa_quotes" t-if="csat.comments.length">
+                        <p t-foreach="csat.comments" t-as="c" t-key="c_index" class="o_wa_quote">
+                            <span class="o_wa_quote__s"><t t-esc="c.score"/>★</span>
+                            <t t-esc="c.comment"/>
+                        </p>
+                    </div>
+                </article>
+
+                <article class="o_wa_panel">
+                    <header class="o_wa_panel__head">
+                        <h2>What chats are about</h2>
+                        <button class="o_wa_btn o_wa_btn--tiny" t-if="props.canExport"
+                                t-on-click="() => this.exportCsv('tags')">Export CSV</button>
+                    </header>
+                    <ul class="o_wa_barlist">
+                        <li t-foreach="tags.rows" t-as="row" t-key="row.id">
+                            <span class="o_wa_barlist__l"><t t-esc="row.label"/></span>
+                            <span class="o_wa_barlist__track">
+                                <span class="o_wa_barlist__fill"
+                                      t-att-style="'width:' + (row.value / tagMax * 100) + '%;background:' + tagColor(row_index)"/>
+                            </span>
+                            <span class="o_wa_barlist__v"><t t-esc="row.value"/></span>
+                        </li>
+                        <li t-if="!tags.rows.length" class="o_wa_muted">
+                            Nothing is tagged in this period.
+                        </li>
+                    </ul>
+                    <p class="o_wa_muted" t-if="tags.untagged">
+                        <t t-esc="tags.untagged"/> chat(s) carry no tag at all.
+                    </p>
+                </article>
+
+                <article class="o_wa_panel">
+                    <header class="o_wa_panel__head">
+                        <h2>By department</h2>
+                        <button class="o_wa_btn o_wa_btn--tiny" t-if="props.canExport"
+                                t-on-click="() => this.exportCsv('departments')">Export CSV</button>
+                    </header>
+                    <ul class="o_wa_barlist">
+                        <li t-foreach="departments" t-as="row" t-key="row.label">
+                            <span class="o_wa_barlist__l"><t t-esc="row.label"/></span>
+                            <span class="o_wa_barlist__track">
+                                <span class="o_wa_barlist__fill"
+                                      t-att-style="'width:' + (row.value / departmentMax * 100) + '%'"/>
+                            </span>
+                            <span class="o_wa_barlist__v"><t t-esc="row.value"/></span>
+                        </li>
+                    </ul>
+                </article>
+
+                <article class="o_wa_panel o_wa_panel--quiet" t-if="props.canExport">
+                    <header class="o_wa_panel__head">
+                        <h2>Raw export</h2>
+                    </header>
+                    <p class="o_wa_muted">
+                        Every conversation in the current filter, one row each, with its
+                        timings, tags, agent and rating. Capped at 5000 rows.
+                    </p>
+                    <button class="o_wa_btn o_wa_btn--primary"
+                            t-att-disabled="state.exporting"
+                            t-on-click="() => this.exportCsv('conversations')">
+                        Download conversations CSV
+                    </button>
+                </article>
+            </div>
+        </t>
+    </section>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.Heatmap">
+    <div class="o_wa_heat">
+        <p class="o_wa_muted" t-if="isEmpty">No inbound messages in this period.</p>
+        <t t-else="">
+            <div class="o_wa_heat__grid">
+                <div class="o_wa_heat__corner"/>
+                <div class="o_wa_heat__hours">
+                    <span t-foreach="hours" t-as="h" t-key="h.hour" class="o_wa_heat__hour">
+                        <t t-if="h.show"><t t-esc="h.label"/></t>
+                    </span>
+                </div>
+                <t t-foreach="rows" t-as="row" t-key="row.day">
+                    <span class="o_wa_heat__day"><t t-esc="row.day"/></span>
+                    <div class="o_wa_heat__row">
+                        <span t-foreach="row.cells" t-as="cell" t-key="cell.hour"
+                              class="o_wa_heat__cell"
+                              t-att-class="'o_wa_heat__cell--' + cell.level"
+                              t-att-title="cell.title"/>
+                    </div>
+                </t>
+            </div>
+            <p class="o_wa_heat__note">
+                Busiest: <b><t t-esc="busiest.day"/></b> around
+                <b><t t-esc="busiest.hourLabel"/>:00</b>
+                (<t t-esc="busiest.value"/> messages)
+            </p>
+        </t>
+    </div>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.ContactsPanel">
+    <section class="o_wa_contacts">
+        <header class="o_wa_contacts__head">
+            <nav class="o_wa_side__tabs">
+                <button class="o_wa_side__tab"
+                        t-att-class="{ 'o_wa_side__tab--on': state.view === 'contacts' }"
+                        t-on-click="() => this.setView('contacts')">
+                    Contacts (<t t-esc="state.total"/>)
+                </button>
+                <button class="o_wa_side__tab" t-if="props.canBlock"
+                        t-att-class="{ 'o_wa_side__tab--on': state.view === 'blocked' }"
+                        t-on-click="() => this.setView('blocked')">
+                    Blocked (<t t-esc="state.blocklist.length"/>)
+                </button>
+            </nav>
+            <input type="search" class="o_wa_input" placeholder="Search name or number…"
+                   t-if="state.view === 'contacts'"
+                   t-att-value="state.search" t-on-input="onSearch"/>
+        </header>
+
+        <div class="o_wa_loading" t-if="state.loading">Loading contacts…</div>
+        <t t-elif="state.view === 'contacts'">
+            <div class="o_wa_tablewrap">
+                <table class="o_wa_table">
+                    <thead>
+                        <tr>
+                            <th>Contact</th>
+                            <th>Number</th>
+                            <th class="o_wa_num">Chats</th>
+                            <th>Tags</th>
+                            <th>Rating</th>
+                            <th>Last seen</th>
+                            <th/>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.contacts" t-as="contact" t-key="contact.number"
+                            t-att-class="{ 'o_wa_row--blocked': contact.blocked }">
+                            <td>
+                                <div class="o_wa_person">
+                                    <img t-if="contact.avatar" t-att-src="contact.avatar" alt=""/>
+                                    <span t-else="" class="o_wa_conv__avatar o_wa_conv__avatar--blank">
+                                        <t t-esc="contact.name.slice(0, 1)"/>
+                                    </span>
+                                    <div>
+                                        <span class="o_wa_person__name"><t t-esc="contact.name"/></span>
+                                        <span class="o_wa_person__mail"><t t-esc="contact.email"/></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="o_wa_mono"><t t-esc="contact.number"/></td>
+                            <td class="o_wa_num"><t t-esc="contact.chats"/></td>
+                            <td>
+                                <span t-foreach="contact.tags" t-as="tag" t-key="tag.id"
+                                      class="o_wa_tagchip"><t t-esc="tag.name"/></span>
+                            </td>
+                            <td class="o_wa_stars"><t t-esc="stars(contact.rating)"/></td>
+                            <td class="o_wa_muted"><t t-esc="formatDate(contact.last_seen)"/></td>
+                            <td class="o_wa_rowacts">
+                                <button class="o_wa_btn o_wa_btn--tiny"
+                                        t-on-click="() => this.props.onOpenConversation(contact.conversation_id)">
+                                    Open chat
+                                </button>
+                                <button class="o_wa_btn o_wa_btn--tiny" t-if="contact.partner_id"
+                                        t-on-click="() => this.openPartner(contact)">Contact</button>
+                                <button class="o_wa_btn o_wa_btn--tiny o_wa_btn--danger"
+                                        t-if="props.canBlock and !contact.blocked"
+                                        t-on-click="() => this.startBlock(contact)">Block</button>
+                                <span class="o_wa_badge o_wa_badge--alert" t-if="contact.blocked">
+                                    blocked
+                                </span>
+                            </td>
+                        </tr>
+                        <tr t-if="!state.contacts.length">
+                            <td colspan="7" class="o_wa_muted">Nobody has written in yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="o_wa_blockpane" t-if="state.blocking">
+                <h3>Block <t t-esc="state.blocking.number"/>?</h3>
+                <p class="o_wa_muted">
+                    Their messages are dropped on arrival: no conversation, no ticket,
+                    no reply. Nothing is sent back, because a reply confirms the number
+                    is live. Any open chat with them is closed.
+                </p>
+                <div class="o_wa_blockpane__row">
+                    <select class="o_wa_select" t-model="state.blockReason">
+                        <option t-foreach="reasons" t-as="r" t-key="r.key"
+                                t-att-value="r.key"><t t-esc="r.label"/></option>
+                    </select>
+                    <input class="o_wa_input" placeholder="Note (optional)"
+                           t-model="state.blockNote"/>
+                    <button class="o_wa_btn o_wa_btn--danger" t-on-click="confirmBlock">
+                        Block this number
+                    </button>
+                    <button class="o_wa_btn o_wa_btn--ghost" t-on-click="cancelBlock">Cancel</button>
+                </div>
+            </div>
+        </t>
+        <t t-else="">
+            <div class="o_wa_tablewrap">
+                <table class="o_wa_table">
+                    <thead>
+                        <tr>
+                            <th>Number</th>
+                            <th>Reason</th>
+                            <th>Note</th>
+                            <th class="o_wa_num">Dropped</th>
+                            <th>Blocked by</th>
+                            <th/>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr t-foreach="state.blocklist" t-as="entry" t-key="entry.id">
+                            <td class="o_wa_mono"><t t-esc="entry.number"/></td>
+                            <td><t t-esc="entry.reason_label"/></td>
+                            <td class="o_wa_muted"><t t-esc="entry.note"/></td>
+                            <td class="o_wa_num"><t t-esc="entry.hits"/></td>
+                            <td class="o_wa_muted">
+                                <t t-esc="entry.blocked_by"/> · <t t-esc="formatDate(entry.blocked_on)"/>
+                            </td>
+                            <td class="o_wa_rowacts">
+                                <button class="o_wa_btn o_wa_btn--tiny"
+                                        t-on-click="() => this.unblock(entry)">Unblock</button>
+                            </td>
+                        </tr>
+                        <tr t-if="!state.blocklist.length">
+                            <td colspan="6" class="o_wa_muted">Nothing is blocked.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </t>
+    </section>
+</t>
+
+<t t-name="ibq_whatsapp_helpdesk.AgentRoster">
+    <section class="o_wa_roster">
+        <header class="o_wa_roster__head">
+            <div>
+                <h2>WhatsApp team</h2>
+                <p class="o_wa_muted">
+                    A role decides what someone can do here <i>and</i> which Odoo
+                    security group they hold, so there is only one place to manage it.
+                    Routing sends each new chat to the least loaded agent who is
+                    Available and under capacity.
+                </p>
+            </div>
+            <div class="o_wa_roster__acts" t-if="has('manage_roster')">
+                <button class="o_wa_btn" t-on-click="openInviteWizard">Full form</button>
+                <button class="o_wa_btn o_wa_btn--primary" t-on-click="openAdd">
+                    Add team members
+                </button>
+            </div>
+        </header>
+
+        <div class="o_wa_rolecards">
+            <div t-foreach="roleCounts" t-as="role" t-key="role.key"
+                 class="o_wa_rolecard" t-att-class="'o_wa_rolecard--' + role.key">
+                <span class="o_wa_rolecard__n"><t t-esc="role.count"/></span>
+                <span class="o_wa_rolecard__l"><t t-esc="role.label"/></span>
+                <span class="o_wa_rolecard__h"><t t-esc="role.hint"/></span>
+            </div>
+        </div>
+
+        <div class="o_wa_empty" t-if="!props.agents.length">
+            <p>Nobody is on the WhatsApp roster yet.</p>
+            <p class="o_wa_muted">
+                Chats will still arrive and open tickets, but nothing will be routed
+                to a person automatically.
+            </p>
+        </div>
+        <div class="o_wa_tablewrap" t-else="">
+            <table class="o_wa_table">
+                <thead>
+                    <tr>
+                        <th>Agent</th>
+                        <th>Role</th>
+                        <th>Presence</th>
+                        <th class="o_wa_num">Open</th>
+                        <th class="o_wa_num">Waiting</th>
+                        <th>Load</th>
+                        <th class="o_wa_num">Capacity</th>
+                        <th>Routing</th>
+                        <th>Departments</th>
+                        <th t-if="has('manage_roster')"/>
+                    </tr>
+                </thead>
+                <tbody>
+                    <t t-foreach="sorted" t-as="agent" t-key="agent.id">
+                        <tr t-att-class="{ 'o_wa_row--me': agent.is_me }">
+                            <td>
+                                <div class="o_wa_person">
+                                    <img t-att-src="agent.avatar" t-att-alt="agent.name"/>
+                                    <div>
+                                        <span class="o_wa_person__name"><t t-esc="agent.name"/></span>
+                                        <span class="o_wa_person__mail"><t t-esc="agent.email"/></span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <select class="o_wa_select" aria-label="Role"
+                                        t-if="has('manage_roles') and agent.can_edit"
+                                        t-on-change="(ev) => this.setRole(agent, ev)">
+                                    <option t-if="agent.role === 'owner'" value="owner" selected="selected">
+                                        Owner
+                                    </option>
+                                    <option t-foreach="grantableRoles" t-as="role" t-key="role.key"
+                                            t-att-value="role.key"
+                                            t-att-selected="agent.role === role.key">
+                                        <t t-esc="role.label"/>
+                                    </option>
+                                </select>
+                                <span t-else="" class="o_wa_rolechip"
+                                      t-att-class="'o_wa_rolechip--' + agent.role">
+                                    <t t-esc="agent.role_label"/>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="o_wa_status">
+                                    <span class="o_wa_dot" t-att-class="'o_wa_dot--' + agent.status"/>
+                                    <select class="o_wa_select" aria-label="Presence"
+                                            t-att-disabled="!has('manage_roster') and !agent.is_me"
+                                            t-on-change="(ev) => this.setStatus(agent, ev)">
+                                        <option t-foreach="statuses" t-as="s" t-key="s.key"
+                                                t-att-value="s.key"
+                                                t-att-selected="agent.status === s.key">
+                                            <t t-esc="s.label"/>
+                                        </option>
+                                    </select>
+                                </div>
+                            </td>
+                            <td class="o_wa_num"><t t-esc="agent.active_chats"/></td>
+                            <td class="o_wa_num">
+                                <span t-att-class="agent.waiting_chats ? 'o_wa_badge o_wa_badge--alert' : ''">
+                                    <t t-esc="agent.waiting_chats"/>
+                                </span>
+                            </td>
+                            <td>
+                                <div class="o_wa_load">
+                                    <div class="o_wa_load__fill" t-att-class="loadClass(agent)"
+                                         t-att-style="'width:' + agent.load_percent + '%'"/>
+                                </div>
+                            </td>
+                            <td class="o_wa_num">
+                                <input type="number" min="1" class="o_wa_input o_wa_input--tiny"
+                                       t-att-value="agent.capacity"
+                                       t-att-disabled="!has('manage_roster')"
+                                       t-on-change="(ev) => this.setCapacity(agent, ev)"/>
+                            </td>
+                            <td>
+                                <button class="o_wa_toggle"
+                                        t-att-class="{ 'o_wa_toggle--on': agent.auto_assign }"
+                                        t-att-disabled="!has('manage_roster')"
+                                        t-on-click="() => this.toggleAutoAssign(agent)">
+                                    <t t-esc="agent.auto_assign ? 'Auto' : 'Manual'"/>
+                                </button>
+                            </td>
+                            <td>
+                                <button class="o_wa_linkbtn"
+                                        t-on-click="() => this.toggleExpanded(agent)">
+                                    <t t-if="agent.departments.length">
+                                        <t t-esc="agent.departments.join(', ')"/>
+                                    </t>
+                                    <t t-else="">All departments</t>
+                                </button>
+                            </td>
+                            <td t-if="has('manage_roster')" class="o_wa_rowacts">
+                                <button class="o_wa_btn o_wa_btn--ghost"
+                                        t-if="agent.role !== 'owner'"
+                                        t-on-click="() => this.remove(agent)">Remove</button>
+                            </td>
+                        </tr>
+                        <tr t-if="state.expanded === agent.id" class="o_wa_row--expand">
+                            <td colspan="10">
+                                <span class="o_wa_teams__label">Departments this agent covers</span>
+                                <button t-foreach="props.departments" t-as="d" t-key="d.id"
+                                        class="o_wa_chipbtn"
+                                        t-att-class="{ 'o_wa_chipbtn--on': agent.department_ids.includes(d.id) }"
+                                        t-att-disabled="!has('manage_roster')"
+                                        t-on-click="() => this.toggleAgentDepartment(agent, d.id)">
+                                    <t t-esc="d.name"/>
+                                </button>
+                                <p class="o_wa_muted">
+                                    Empty means every department. A supervisor only oversees
+                                    the departments listed here.
+                                </p>
+                            </td>
+                        </tr>
+                    </t>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="o_wa_addpane" t-if="state.adding">
+            <header class="o_wa_addpane__head">
+                <h3>Add team members</h3>
+                <button class="o_wa_btn o_wa_btn--ghost" t-on-click="closeAdd">Cancel</button>
+            </header>
+
+            <input type="search" class="o_wa_input" placeholder="Search users…"
+                   t-att-value="state.search" t-on-input="onSearch"/>
+
+            <div class="o_wa_pickgrid">
+                <button t-foreach="state.candidates" t-as="user" t-key="user.id"
+                        class="o_wa_pick"
+                        t-att-class="{ 'o_wa_pick--on': isSelected(user.id) }"
+                        t-on-click="() => this.toggleCandidate(user.id)">
+                    <img t-att-src="user.avatar" t-att-alt="user.name"/>
+                    <span class="o_wa_pick__name"><t t-esc="user.name"/></span>
+                    <span class="o_wa_pick__mail"><t t-esc="user.email"/></span>
+                </button>
+                <p class="o_wa_muted" t-if="!state.candidates.length">
+                    Every internal user is already on the roster.
+                </p>
+            </div>
+
+            <div class="o_wa_teams">
+                <span class="o_wa_teams__label">Role</span>
+                <button t-foreach="grantableRoles" t-as="role" t-key="role.key"
+                        class="o_wa_chipbtn"
+                        t-att-class="{ 'o_wa_chipbtn--on': state.newRole === role.key }"
+                        t-att-title="role.hint"
+                        t-on-click="() => (state.newRole = role.key)">
+                    <t t-esc="role.label"/>
+                </button>
+            </div>
+
+            <div class="o_wa_teams" t-if="props.departments.length">
+                <span class="o_wa_teams__label">Departments (optional)</span>
+                <button t-foreach="props.departments" t-as="d" t-key="d.id"
+                        class="o_wa_chipbtn"
+                        t-att-class="{ 'o_wa_chipbtn--on': state.departmentIds.includes(d.id) }"
+                        t-on-click="() => this.toggleDepartment(d.id)">
+                    <t t-esc="d.name"/>
+                </button>
+            </div>
+
+            <footer class="o_wa_addpane__foot">
+                <span class="o_wa_muted"><t t-esc="state.selected.length"/> selected</span>
+                <button class="o_wa_btn o_wa_btn--primary"
+                        t-att-disabled="!state.selected.length or state.busy"
+                        t-on-click="confirmAdd">Add to team</button>
+            </footer>
+        </div>
+    </section>
+</t>
+
+</templates>

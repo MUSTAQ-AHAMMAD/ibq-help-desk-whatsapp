@@ -4,7 +4,7 @@
 
         <record id="cron_whatsapp_send_queue" model="ir.cron">
             <field name="name">WhatsApp: send queued messages</field>
-            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="model_id" ref="model_ibq_whatsapp_message"/>
             <field name="state">code</field>
             <field name="code">model._cron_send_queued()</field>
             <field name="interval_number">2</field>
@@ -16,7 +16,7 @@
 
         <record id="cron_whatsapp_close_idle" model="ir.cron">
             <field name="name">WhatsApp: close idle conversations</field>
-            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="model_id" ref="model_ibq_whatsapp_conversation"/>
             <field name="state">code</field>
             <field name="code">model._cron_close_idle(int(env['ir.config_parameter'].sudo().get_param('ibq_whatsapp.idle_close_hours', 48)))</field>
             <field name="interval_number">1</field>
@@ -29,7 +29,7 @@
 
         <record id="cron_whatsapp_classify_issues" model="ir.cron">
             <field name="name">WhatsApp: classify issues</field>
-            <field name="model_id" ref="model_whatsapp_issue"/>
+            <field name="model_id" ref="model_ibq_whatsapp_issue"/>
             <field name="state">code</field>
             <field name="code">model._cron_classify()</field>
             <field name="interval_number">30</field>

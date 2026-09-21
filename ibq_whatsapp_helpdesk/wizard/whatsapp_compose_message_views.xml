@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_compose_message_form" model="ir.ui.view">
         <field name="name">whatsapp.compose.message.form</field>
-        <field name="model">whatsapp.compose.message</field>
+        <field name="model">ibq.whatsapp.compose.message</field>
         <field name="arch" type="xml">
             <form string="Send WhatsApp Message">
                 <div class="alert alert-warning" role="alert"

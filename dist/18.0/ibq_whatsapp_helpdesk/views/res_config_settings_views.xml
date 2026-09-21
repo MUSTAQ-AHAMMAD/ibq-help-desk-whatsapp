@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GENERATED FOR ODOO 18 - DO NOT EDIT.
+     Source: views\res_config_settings_views.xml
+     Rebuild with tools/build_v18.py after editing the Odoo 17 file. -->
+<odoo>
+
+    <record id="res_config_settings_view_form_whatsapp" model="ir.ui.view">
+        <field name="name">res.config.settings.form.whatsapp</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="WhatsApp" string="WhatsApp" name="ibq_whatsapp_helpdesk"
+                     groups="ibq_whatsapp_helpdesk.group_whatsapp_manager">
+                    <block title="Channel" name="whatsapp_channel">
+                        <setting id="whatsapp_default_account"
+                                 string="Default account"
+                                 help="Used when no team or ticket points at a specific sender.">
+                            <field name="whatsapp_default_account_id"/>
+                            <div class="mt8">
+                                <button name="action_open_whatsapp_accounts" type="object"
+                                        string="Configure Twilio accounts"
+                                        class="btn-link" icon="fa-arrow-right"/>
+                            </div>
+                        </setting>
+                    </block>
+                    <block title="Automation" name="whatsapp_automation">
+                        <setting id="whatsapp_activity_on_reply"
+                                 help="Raise a to-do for the assigned agent when a customer answers over WhatsApp.">
+                            <field name="whatsapp_activity_on_reply"/>
+                        </setting>
+                        <setting id="whatsapp_idle_close"
+                                 string="Auto-close idle chats"
+                                 help="Chats with no activity for this many hours are closed by a scheduled action.">
+                            <field name="whatsapp_idle_close_hours" class="o_light_label"/>
+                            <span class="ms-1">hours</span>
+                        </setting>
+                    </block>
+                    <block title="Troubleshooting" name="whatsapp_debug">
+                        <setting id="whatsapp_log_webhooks"
+                                 help="Write every inbound Twilio payload to the server log.">
+                            <field name="whatsapp_log_webhooks"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_message_tree" model="ir.ui.view">
         <field name="name">whatsapp.message.tree</field>
-        <field name="model">whatsapp.message</field>
+        <field name="model">ibq.whatsapp.message</field>
         <field name="arch" type="xml">
             <tree string="WhatsApp Messages" create="false"
                   decoration-danger="state == 'failed'"
@@ -31,7 +31,7 @@
 
     <record id="view_whatsapp_message_form" model="ir.ui.view">
         <field name="name">whatsapp.message.form</field>
-        <field name="model">whatsapp.message</field>
+        <field name="model">ibq.whatsapp.message</field>
         <field name="arch" type="xml">
             <form string="WhatsApp Message" create="false">
                 <header>
@@ -79,7 +79,7 @@
 
     <record id="view_whatsapp_message_search" model="ir.ui.view">
         <field name="name">whatsapp.message.search</field>
-        <field name="model">whatsapp.message</field>
+        <field name="model">ibq.whatsapp.message</field>
         <field name="arch" type="xml">
             <search string="WhatsApp Messages">
                 <field name="number"/>
@@ -107,7 +107,7 @@
 
     <record id="action_whatsapp_message" model="ir.actions.act_window">
         <field name="name">Messages</field>
-        <field name="res_model">whatsapp.message</field>
+        <field name="res_model">ibq.whatsapp.message</field>
         <field name="view_mode">tree,form</field>
         <field name="search_view_id" ref="view_whatsapp_message_search"/>
         <field name="context">{'search_default_group_date': 1}</field>
@@ -115,7 +115,7 @@
 
     <record id="action_whatsapp_message_failed" model="ir.actions.act_window">
         <field name="name">Failed Messages</field>
-        <field name="res_model">whatsapp.message</field>
+        <field name="res_model">ibq.whatsapp.message</field>
         <field name="view_mode">tree,form</field>
         <field name="domain">[('state', '=', 'failed')]</field>
         <field name="help" type="html">

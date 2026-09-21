@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_agent_tree" model="ir.ui.view">
         <field name="name">whatsapp.agent.tree</field>
-        <field name="model">whatsapp.agent</field>
+        <field name="model">ibq.whatsapp.agent</field>
         <field name="arch" type="xml">
             <tree string="WhatsApp Team" multi_edit="1"
                   decoration-muted="status == 'offline'">
@@ -32,7 +32,7 @@
 
     <record id="view_whatsapp_agent_kanban" model="ir.ui.view">
         <field name="name">whatsapp.agent.kanban</field>
-        <field name="model">whatsapp.agent</field>
+        <field name="model">ibq.whatsapp.agent</field>
         <field name="arch" type="xml">
             <kanban default_group_by="status" class="o_kanban_small_column">
                 <field name="status"/>
@@ -41,8 +41,12 @@
                     <t t-name="kanban-box">
                         <div class="oe_kanban_global_click">
                             <div class="o_kanban_record_top">
+                                <!-- Plain image URL rather than the kanban_image()
+                                     helper: the helper's availability differs
+                                     between Odoo versions, and /web/image does
+                                     not. -->
                                 <img class="o_kanban_image_fill_left me-2"
-                                     t-att-src="kanban_image('res.users', 'avatar_128', record.user_id.raw_value)"
+                                     t-att-src="'/web/image/res.users/' + record.user_id.raw_value + '/avatar_128'"
                                      alt="Agent" style="width:38px;height:38px;border-radius:50%"/>
                                 <div class="o_kanban_record_headings">
                                     <strong><field name="user_id"/></strong>
@@ -68,7 +72,7 @@
 
     <record id="view_whatsapp_agent_form" model="ir.ui.view">
         <field name="name">whatsapp.agent.form</field>
-        <field name="model">whatsapp.agent</field>
+        <field name="model">ibq.whatsapp.agent</field>
         <field name="arch" type="xml">
             <form string="WhatsApp Agent">
                 <sheet>
@@ -123,7 +127,7 @@
 
     <record id="view_whatsapp_agent_search" model="ir.ui.view">
         <field name="name">whatsapp.agent.search</field>
-        <field name="model">whatsapp.agent</field>
+        <field name="model">ibq.whatsapp.agent</field>
         <field name="arch" type="xml">
             <search string="WhatsApp Team">
                 <field name="user_id"/>
@@ -149,7 +153,7 @@
 
     <record id="action_whatsapp_agent" model="ir.actions.act_window">
         <field name="name">Team Members</field>
-        <field name="res_model">whatsapp.agent</field>
+        <field name="res_model">ibq.whatsapp.agent</field>
         <field name="view_mode">tree,kanban,form</field>
         <field name="search_view_id" ref="view_whatsapp_agent_search"/>
         <field name="help" type="html">
