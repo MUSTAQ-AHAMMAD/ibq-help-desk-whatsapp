@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_account_tree" model="ir.ui.view">
         <field name="name">whatsapp.account.tree</field>
-        <field name="model">whatsapp.account</field>
+        <field name="model">ibq.whatsapp.account</field>
         <field name="arch" type="xml">
             <tree string="WhatsApp Accounts">
                 <field name="sequence" widget="handle"/>
@@ -22,7 +22,7 @@
 
     <record id="view_whatsapp_account_form" model="ir.ui.view">
         <field name="name">whatsapp.account.form</field>
-        <field name="model">whatsapp.account</field>
+        <field name="model">ibq.whatsapp.account</field>
         <field name="arch" type="xml">
             <form string="WhatsApp Account">
                 <header>
@@ -90,7 +90,7 @@
 
     <record id="action_whatsapp_account" model="ir.actions.act_window">
         <field name="name">WhatsApp Accounts</field>
-        <field name="res_model">whatsapp.account</field>
+        <field name="res_model">ibq.whatsapp.account</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Connect a Twilio WhatsApp sender</p>

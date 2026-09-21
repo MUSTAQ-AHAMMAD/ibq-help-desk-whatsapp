@@ -11,7 +11,7 @@ class WhatsappTag(models.Model):
     department.
     """
 
-    _name = "whatsapp.tag"
+    _name = "ibq.whatsapp.tag"
     _description = "WhatsApp Tag"
     _order = "sequence, name"
 
@@ -39,7 +39,7 @@ class WhatsappTag(models.Model):
                 raise ValidationError(_("Tag colour must be between 0 and 11."))
 
     def _compute_conversation_count(self):
-        groups = self.env["whatsapp.conversation"]._read_group(
+        groups = self.env["ibq.whatsapp.conversation"]._read_group(
             [("tag_ids", "in", self.ids)], ["tag_ids"], ["__count"]
         )
         mapped = {tag.id: count for tag, count in groups}

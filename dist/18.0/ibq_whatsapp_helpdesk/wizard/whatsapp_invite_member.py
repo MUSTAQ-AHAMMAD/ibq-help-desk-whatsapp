@@ -10,7 +10,7 @@ class WhatsappInviteMember(models.TransientModel):
     open it, and only the Owner may hand out Administrator.
     """
 
-    _name = "whatsapp.invite.member"
+    _name = "ibq.whatsapp.invite.member"
     _description = "Add WhatsApp Team Members"
 
     user_ids = fields.Many2many(
@@ -37,7 +37,7 @@ class WhatsappInviteMember(models.TransientModel):
         help="Leave empty to cover every department.",
     )
     account_ids = fields.Many2many(
-        "whatsapp.account", string="Senders",
+        "ibq.whatsapp.account", string="Senders",
         help="Leave empty to cover every WhatsApp number.",
     )
     max_active_chats = fields.Integer("Capacity", default=5)
@@ -56,7 +56,7 @@ class WhatsappInviteMember(models.TransientModel):
 
     @api.depends("user_ids")
     def _compute_existing_user_ids(self):
-        on_roster = self.env["whatsapp.agent"].sudo().search([]).user_id
+        on_roster = self.env["ibq.whatsapp.agent"].sudo().search([]).user_id
         for wizard in self:
             wizard.existing_user_ids = on_roster
 
@@ -68,11 +68,11 @@ class WhatsappInviteMember(models.TransientModel):
 
     def action_add(self):
         self.ensure_one()
-        me = self.env["whatsapp.agent"]._assert_right("manage_roster")
+        me = self.env["ibq.whatsapp.agent"]._assert_right("manage_roster")
         if self.role == "admin" and me and me.role != "owner":
             raise AccessError(_("Only the Owner can create another Administrator."))
 
-        agents = self.env["whatsapp.agent"].sudo()
+        agents = self.env["ibq.whatsapp.agent"].sudo()
         created = agents.browse()
         for user in self.user_ids:
             if agents.search_count([("user_id", "=", user.id)]):
@@ -94,7 +94,7 @@ class WhatsappInviteMember(models.TransientModel):
         return {
             "type": "ir.actions.act_window",
             "name": _("WhatsApp Team"),
-            "res_model": "whatsapp.agent",
+            "res_model": "ibq.whatsapp.agent",
             "view_mode": "tree,form",
             "domain": [("id", "in", created.ids)],
         }

@@ -31,11 +31,11 @@ class TestWhatsappRoles(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.dashboard = cls.env["whatsapp.dashboard"]
+        cls.dashboard = cls.env["ibq.whatsapp.dashboard"]
         cls.sales = cls.env["helpdesk.team"].create({"name": "Sales"})
         cls.tech = cls.env["helpdesk.team"].create({"name": "Tech"})
 
-        cls.account = cls.env["whatsapp.account"].create({
+        cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Roles sender",
             "account_sid": "AC" + "2" * 32,
             "auth_token": "token",
@@ -56,7 +56,7 @@ class TestWhatsappRoles(TransactionCase):
         cls.agent_user = cls._make_user("agent1", "Alex Agent")
         cls.other_user = cls._make_user("agent2", "Ada Agent")
 
-        Agent = cls.env["whatsapp.agent"]
+        Agent = cls.env["ibq.whatsapp.agent"]
         cls.owner = Agent.create({"user_id": cls.owner_user.id, "role": "owner"})
         cls.admin = Agent.create({"user_id": cls.admin_user.id, "role": "admin"})
         cls.supervisor = Agent.create({
@@ -75,10 +75,10 @@ class TestWhatsappRoles(TransactionCase):
         })
 
     def _as(self, user):
-        return self.env["whatsapp.dashboard"].with_user(user)
+        return self.env["ibq.whatsapp.dashboard"].with_user(user)
 
     def _conversation(self, number="+971511000001", **values):
-        conversation = self.env["whatsapp.conversation"]._get_or_create(
+        conversation = self.env["ibq.whatsapp.conversation"]._get_or_create(
             self.account, number
         )
         if values:
@@ -122,9 +122,9 @@ class TestWhatsappRoles(TransactionCase):
             "ibq_whatsapp_helpdesk.group_whatsapp_user"))
 
     def test_first_agent_on_an_empty_roster_becomes_the_owner(self):
-        self.env["whatsapp.agent"].search([]).unlink()
+        self.env["ibq.whatsapp.agent"].search([]).unlink()
         user = self._make_user("first1", "First Person")
-        agent = self.env["whatsapp.agent"].create({"user_id": user.id})
+        agent = self.env["ibq.whatsapp.agent"].create({"user_id": user.id})
         self.assertEqual(agent.role, "owner",
                          "a fresh install must have somebody who can configure it")
 
@@ -135,12 +135,12 @@ class TestWhatsappRoles(TransactionCase):
         self.assertEqual(self.owner.role, "admin",
                          "promoting a new owner steps the previous one down")
         self.assertEqual(
-            self.env["whatsapp.agent"].search_count([("role", "=", "owner")]), 1
+            self.env["ibq.whatsapp.agent"].search_count([("role", "=", "owner")]), 1
         )
 
     def test_two_owners_cannot_be_written_directly(self):
         with self.assertRaises(ValidationError):
-            self.env["whatsapp.agent"].create({
+            self.env["ibq.whatsapp.agent"].create({
                 "user_id": self._make_user("dup1", "Dup").id,
                 "role": "owner",
             }).flush_recordset()
@@ -256,14 +256,14 @@ class TestWhatsappRoles(TransactionCase):
         """
         theirs = self._conversation("+971511000055", state="agent",
                                     user_id=self.other_user.id)
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "conversation_id": theirs.id, "account_id": self.account.id,
             "direction": "inbound", "number": theirs.number,
             "body": "not yours", "state": "received",
         })
         mine = self._conversation("+971511000056", state="agent",
                                   user_id=self.agent_user.id)
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "conversation_id": mine.id, "account_id": self.account.id,
             "direction": "inbound", "number": mine.number,
             "body": "mine", "state": "received",
@@ -290,14 +290,14 @@ class TestWhatsappRoles(TransactionCase):
     # ==================================================================
     def test_canned_shortcut_must_be_well_formed(self):
         with self.assertRaises(ValidationError):
-            self.env["whatsapp.canned.response"].create({
+            self.env["ibq.whatsapp.canned.response"].create({
                 "shortcut": "Not A Shortcut", "name": "x", "body": "y",
             })
 
     def test_canned_rendering_fills_placeholders(self):
         conversation = self._conversation("+971511000070")
         conversation.write({"answers": '{"order_ref": "SO4471"}'})
-        canned = self.env["whatsapp.canned.response"].create({
+        canned = self.env["ibq.whatsapp.canned.response"].create({
             "shortcut": "order-status", "name": "Order status",
             "body": "Hi {name}, order {order_ref} is on its way. {unknown}",
         })
@@ -307,11 +307,11 @@ class TestWhatsappRoles(TransactionCase):
                       "an unknown placeholder is left visible, not blanked")
 
     def test_private_canned_replies_are_not_shared(self):
-        self.env["whatsapp.canned.response"].create({
+        self.env["ibq.whatsapp.canned.response"].create({
             "shortcut": "mine", "name": "Mine", "body": "x",
             "owner_id": self.agent_user.id,
         })
-        self.env["whatsapp.canned.response"].create({
+        self.env["ibq.whatsapp.canned.response"].create({
             "shortcut": "shared", "name": "Shared", "body": "y",
         })
         mine = self._as(self.agent_user).get_canned_responses()
@@ -329,7 +329,7 @@ class TestWhatsappRoles(TransactionCase):
             "shortcut": "personal", "name": "Personal", "body": "x",
             "is_private": True,
         })
-        self.assertTrue(self.env["whatsapp.canned.response"].search(
+        self.assertTrue(self.env["ibq.whatsapp.canned.response"].search(
             [("shortcut", "=", "personal"), ("owner_id", "=", self.agent_user.id)]
         ))
 
@@ -337,7 +337,7 @@ class TestWhatsappRoles(TransactionCase):
         self._as(self.super_user).save_canned_response({
             "shortcut": "greeting", "name": "Greeting", "body": "Hello!",
         })
-        record = self.env["whatsapp.canned.response"].search(
+        record = self.env["ibq.whatsapp.canned.response"].search(
             [("shortcut", "=", "greeting")]
         )
         self.assertTrue(record)
@@ -345,7 +345,7 @@ class TestWhatsappRoles(TransactionCase):
 
     def test_sending_a_canned_reply_counts_its_use(self):
         conversation = self._conversation("+971511000080")
-        canned = self.env["whatsapp.canned.response"].create({
+        canned = self.env["ibq.whatsapp.canned.response"].create({
             "shortcut": "thanks", "name": "Thanks", "body": "Thank you!",
         })
         # Inside the stub: assigning an agent now tells the customer who has
@@ -353,7 +353,7 @@ class TestWhatsappRoles(TransactionCase):
         with patch(SEND_PATH, fake_send):
             conversation.write({"state": "agent", "user_id": self.env.uid,
                                 "last_inbound_date": "2999-01-01 00:00:00"})
-            self.env["whatsapp.dashboard"].send_message(
+            self.env["ibq.whatsapp.dashboard"].send_message(
                 conversation.id, "Thank you!", canned_id=canned.id
             )
         self.assertEqual(canned.usage_count, 1)
@@ -362,7 +362,7 @@ class TestWhatsappRoles(TransactionCase):
     # Tags
     # ==================================================================
     def test_agents_cannot_manage_tags_but_can_apply_them(self):
-        tag = self.env["whatsapp.tag"].create({"name": "Billing"})
+        tag = self.env["ibq.whatsapp.tag"].create({"name": "Billing"})
         with self.assertRaises(AccessError):
             self._as(self.agent_user).save_tag({"name": "Sneaky"})
 
@@ -373,7 +373,7 @@ class TestWhatsappRoles(TransactionCase):
 
     def test_tag_colour_is_bounded(self):
         with self.assertRaises(ValidationError):
-            self.env["whatsapp.tag"].create({"name": "Bad", "color": 99})
+            self.env["ibq.whatsapp.tag"].create({"name": "Bad", "color": 99})
 
     # ==================================================================
     # Satisfaction
@@ -406,7 +406,7 @@ class TestWhatsappRoles(TransactionCase):
             "user_id": self.agent_user.id, "team_id": self.tech.id,
             "last_inbound_date": "2999-01-01 00:00:00",
         })
-        message = self.env["whatsapp.message"].create({
+        message = self.env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id, "account_id": self.account.id,
             "direction": "inbound", "number": conversation.number,
             "body": "5", "state": "received",
@@ -426,7 +426,7 @@ class TestWhatsappRoles(TransactionCase):
             "state": "closed", "awaiting_rating": True,
             "last_inbound_date": "2999-01-01 00:00:00",
         })
-        message = self.env["whatsapp.message"].create({
+        message = self.env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id, "account_id": self.account.id,
             "direction": "inbound", "number": conversation.number,
             "body": "actually it is still broken", "state": "received",
@@ -440,7 +440,7 @@ class TestWhatsappRoles(TransactionCase):
         bands = {}
         for score in ("1", "2", "3", "4", "5"):
             conversation = self._conversation("+97151100011%s" % score)
-            rating = self.env["whatsapp.rating"].create({
+            rating = self.env["ibq.whatsapp.rating"].create({
                 "conversation_id": conversation.id, "score": score,
             })
             bands[score] = rating.sentiment
@@ -452,8 +452,8 @@ class TestWhatsappRoles(TransactionCase):
     # Blocklist
     # ==================================================================
     def test_blocked_numbers_never_reach_a_conversation(self):
-        self.env["whatsapp.blocklist"]._block("+971511000200", "spam")
-        before = self.env["whatsapp.conversation"].search_count([])
+        self.env["ibq.whatsapp.blocklist"]._block("+971511000200", "spam")
+        before = self.env["ibq.whatsapp.conversation"].search_count([])
         result = self.account._process_inbound_payload({
             "From": "whatsapp:+971511000200",
             "To": "whatsapp:+14155238888",
@@ -462,12 +462,12 @@ class TestWhatsappRoles(TransactionCase):
             "NumMedia": "0",
         })
         self.assertFalse(result)
-        self.assertEqual(self.env["whatsapp.conversation"].search_count([]), before)
-        entry = self.env["whatsapp.blocklist"]._entry_for("+971511000200")
+        self.assertEqual(self.env["ibq.whatsapp.conversation"].search_count([]), before)
+        entry = self.env["ibq.whatsapp.blocklist"]._entry_for("+971511000200")
         self.assertEqual(entry.hit_count, 1)
 
     def test_blocking_normalises_the_number(self):
-        entry = self.env["whatsapp.blocklist"]._block("whatsapp:+971 51 100 0300")
+        entry = self.env["ibq.whatsapp.blocklist"]._block("whatsapp:+971 51 100 0300")
         self.assertEqual(entry.number, "+971511000300")
 
     def test_agents_cannot_block(self):
@@ -612,7 +612,7 @@ class TestWhatsappRoles(TransactionCase):
     # ==================================================================
     def test_invite_wizard_adds_people(self):
         newcomer = self._make_user("newbie1", "Nina Newbie")
-        wizard = self.env["whatsapp.invite.member"].with_user(self.owner_user).create({
+        wizard = self.env["ibq.whatsapp.invite.member"].with_user(self.owner_user).create({
             "user_ids": [(6, 0, [newcomer.id])],
             "role": "supervisor",
             "team_ids": [(6, 0, [self.tech.id])],
@@ -620,7 +620,7 @@ class TestWhatsappRoles(TransactionCase):
             "notify": False,
         })
         wizard.action_add()
-        agent = self.env["whatsapp.agent"].search([("user_id", "=", newcomer.id)])
+        agent = self.env["ibq.whatsapp.agent"].search([("user_id", "=", newcomer.id)])
         self.assertEqual(agent.role, "supervisor")
         self.assertEqual(agent.max_active_chats, 7)
         self.assertEqual(agent.team_ids, self.tech)
@@ -628,7 +628,7 @@ class TestWhatsappRoles(TransactionCase):
             "ibq_whatsapp_helpdesk.group_whatsapp_supervisor"))
 
     def test_invite_wizard_refuses_duplicates(self):
-        wizard = self.env["whatsapp.invite.member"].with_user(self.owner_user).create({
+        wizard = self.env["ibq.whatsapp.invite.member"].with_user(self.owner_user).create({
             "user_ids": [(6, 0, [self.agent_user.id])], "notify": False,
         })
         with self.assertRaises(UserError):
@@ -636,7 +636,7 @@ class TestWhatsappRoles(TransactionCase):
 
     def test_only_the_owner_may_invite_an_administrator(self):
         newcomer = self._make_user("newbie2", "Nate Newbie")
-        wizard = self.env["whatsapp.invite.member"].with_user(self.admin_user).create({
+        wizard = self.env["ibq.whatsapp.invite.member"].with_user(self.admin_user).create({
             "user_ids": [(6, 0, [newcomer.id])], "role": "admin", "notify": False,
         })
         with self.assertRaises(AccessError):

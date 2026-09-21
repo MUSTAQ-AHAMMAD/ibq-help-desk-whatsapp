@@ -6,11 +6,11 @@ from ..models.whatsapp_account import normalize_number
 
 
 class WhatsappComposeMessage(models.TransientModel):
-    _name = "whatsapp.compose.message"
+    _name = "ibq.whatsapp.compose.message"
     _description = "Send a WhatsApp Message"
 
-    account_id = fields.Many2one("whatsapp.account", required=True)
-    conversation_id = fields.Many2one("whatsapp.conversation")
+    account_id = fields.Many2one("ibq.whatsapp.account", required=True)
+    conversation_id = fields.Many2one("ibq.whatsapp.conversation")
     ticket_id = fields.Many2one("helpdesk.ticket")
     partner_id = fields.Many2one("res.partner", string="Contact")
     number = fields.Char("To", required=True)
@@ -20,7 +20,7 @@ class WhatsappComposeMessage(models.TransientModel):
         default="text", required=True,
     )
     template_id = fields.Many2one(
-        "whatsapp.template", string="Template",
+        "ibq.whatsapp.template", string="Template",
         domain="['|', ('account_id', '=', account_id), ('account_id', '=', False)]",
     )
     body = fields.Text("Message")
@@ -56,7 +56,7 @@ class WhatsappComposeMessage(models.TransientModel):
     def _onchange_find_conversation(self):
         if self.conversation_id or not (self.account_id and self.number):
             return
-        self.conversation_id = self.env["whatsapp.conversation"].search([
+        self.conversation_id = self.env["ibq.whatsapp.conversation"].search([
             ("account_id", "=", self.account_id.id),
             ("number", "=", normalize_number(self.number)),
         ], limit=1)
@@ -67,7 +67,7 @@ class WhatsappComposeMessage(models.TransientModel):
             raise UserError(_("A destination number is required."))
         conversation = self.conversation_id
         if not conversation:
-            conversation = self.env["whatsapp.conversation"]._get_or_create(
+            conversation = self.env["ibq.whatsapp.conversation"]._get_or_create(
                 self.account_id, self.number,
                 self.partner_id.name if self.partner_id else None,
             )

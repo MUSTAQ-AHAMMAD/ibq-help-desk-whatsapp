@@ -8,14 +8,14 @@ class ResPartner(models.Model):
     _inherit = "res.partner"
 
     whatsapp_conversation_ids = fields.One2many(
-        "whatsapp.conversation", "partner_id", string="WhatsApp Chats"
+        "ibq.whatsapp.conversation", "partner_id", string="WhatsApp Chats"
     )
     whatsapp_conversation_count = fields.Integer(
         compute="_compute_whatsapp_conversation_count"
     )
 
     def _compute_whatsapp_conversation_count(self):
-        groups = self.env["whatsapp.conversation"]._read_group(
+        groups = self.env["ibq.whatsapp.conversation"]._read_group(
             [("partner_id", "in", self.ids)], ["partner_id"], ["__count"]
         )
         mapped = {partner.id: count for partner, count in groups}

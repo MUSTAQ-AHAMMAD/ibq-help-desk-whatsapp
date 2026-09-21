@@ -128,7 +128,7 @@ def _build(env):
                 "name": name, "login": login, "password": login,
                 "email": "%s@ibq.example" % login,
             })
-        agent = env["whatsapp.agent"].search([("user_id", "=", user.id)], limit=1)
+        agent = env["ibq.whatsapp.agent"].search([("user_id", "=", user.id)], limit=1)
         values = {
             "role": role, "status": status, "max_active_chats": capacity,
             "team_ids": [(6, 0, [teams[t].id for t in team_names])],
@@ -136,7 +136,7 @@ def _build(env):
         if agent:
             agent.write(values)
         else:
-            agent = env["whatsapp.agent"].create(dict(values, user_id=user.id))
+            agent = env["ibq.whatsapp.agent"].create(dict(values, user_id=user.id))
         agents[login] = agent
     print("  %s agents" % len(agents))
 
@@ -151,8 +151,8 @@ def _build(env):
     ]
     tags = {}
     for name, color, description in tag_specs:
-        tags[name] = env["whatsapp.tag"].search([("name", "=", name)], limit=1) or \
-            env["whatsapp.tag"].create({"name": name, "color": color,
+        tags[name] = env["ibq.whatsapp.tag"].search([("name", "=", name)], limit=1) or \
+            env["ibq.whatsapp.tag"].create({"name": name, "color": color,
                                         "description": description})
 
     # ---------------------------------------------------------------- replies
@@ -169,18 +169,18 @@ def _build(env):
          "I have escalated this to our specialists. Someone will reply here shortly."),
     ]
     for shortcut, title, body in canned:
-        if not env["whatsapp.canned.response"].search([("shortcut", "=", shortcut)]):
-            env["whatsapp.canned.response"].create({
+        if not env["ibq.whatsapp.canned.response"].search([("shortcut", "=", shortcut)]):
+            env["ibq.whatsapp.canned.response"].create({
                 "shortcut": shortcut, "name": title, "body": body,
                 "usage_count": random.randint(2, 40),
             })
 
     # ---------------------------------------------------------------- account
-    account = env["whatsapp.account"].search([], limit=1)
+    account = env["ibq.whatsapp.account"].search([], limit=1)
     if not account:
         flow = env.ref("ibq_whatsapp_helpdesk.bot_flow_support",
                        raise_if_not_found=False)
-        account = env["whatsapp.account"].create({
+        account = env["ibq.whatsapp.account"].create({
             "name": "IBQ Support Line",
             "account_sid": "AC" + "0" * 32,
             "auth_token": "demo-token-not-real",
@@ -233,7 +233,7 @@ def _build(env):
             "mobile": number,
             "email": "%s.%s@example.com" % (first.lower(), last.split()[0].lower()),
         })
-        conversation = env["whatsapp.conversation"].create({
+        conversation = env["ibq.whatsapp.conversation"].create({
             "account_id": account.id,
             "number": number,
             "profile_name": first,
@@ -251,7 +251,7 @@ def _build(env):
         messages = []
 
         def say(body, direction, when, is_bot=False, author=None, state=None):
-            record = env["whatsapp.message"].create({
+            record = env["ibq.whatsapp.message"].create({
                 "conversation_id": conversation.id,
                 "account_id": account.id,
                 "direction": direction,
@@ -394,7 +394,7 @@ def _build(env):
                           "Had to chase this three times"],
                     "1": ["Still not really fixed", "Nobody got back to me"],
                 }[score]
-                rating = env["whatsapp.rating"].create({
+                rating = env["ibq.whatsapp.rating"].create({
                     "conversation_id": conversation.id,
                     "user_id": agent.user_id.id,
                     "team_id": conversation.team_id.id,
@@ -414,13 +414,13 @@ def _build(env):
     # A few chats still with the bot, right now, so Monitoring has a column.
     for index in range(5):
         number = "+9715%08d" % random.randrange(10 ** 8)
-        conversation = env["whatsapp.conversation"].create({
+        conversation = env["ibq.whatsapp.conversation"].create({
             "account_id": account.id, "number": number,
             "profile_name": random.choice(FIRST_NAMES),
             "team_id": teams["Technical Support"].id,
         })
         when = NOW - timedelta(minutes=random.randint(2, 70))
-        record = env["whatsapp.message"].create({
+        record = env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id, "account_id": account.id,
             "direction": "inbound", "number": number,
             "body": random.choice(["Hi", "Hello", "I need help", "Anyone there?"]),
@@ -435,13 +435,13 @@ def _build(env):
         ("+971500000911", "spam", "Bulk marketing, 40+ messages a day"),
         ("+971500000912", "abuse", "Abusive language to two agents"),
     ):
-        if not env["whatsapp.blocklist"]._entry_for(number):
-            entry = env["whatsapp.blocklist"]._block(number, reason, note)
+        if not env["ibq.whatsapp.blocklist"]._entry_for(number):
+            entry = env["ibq.whatsapp.blocklist"]._block(number, reason, note)
             entry.sudo().write({"hit_count": random.randint(3, 27)})
 
     # A couple of failed sends, so the failure inbox is not theoretically empty.
     for conversation in random.sample(conversations, 3):
-        record = env["whatsapp.message"].create({
+        record = env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id, "account_id": account.id,
             "direction": "outbound", "number": conversation.number,
             "body": "Just checking in on this one.",
@@ -457,17 +457,17 @@ def _build(env):
     # invalidate first: the back-dating above was raw SQL, so the ORM cache
     # still holds the create_date values from when the rows were written.
     env.invalidate_all()
-    conversations_all = env["whatsapp.conversation"].search([])
+    conversations_all = env["ibq.whatsapp.conversation"].search([])
     env.add_to_compute(
-        env["whatsapp.conversation"]._fields["last_message_date"], conversations_all
+        env["ibq.whatsapp.conversation"]._fields["last_message_date"], conversations_all
     )
     conversations_all.flush_recordset()
 
     env.cr.commit()
-    print("  %s conversations" % env["whatsapp.conversation"].search_count([]))
-    print("  %s messages" % env["whatsapp.message"].search_count([]))
+    print("  %s conversations" % env["ibq.whatsapp.conversation"].search_count([]))
+    print("  %s messages" % env["ibq.whatsapp.message"].search_count([]))
     print("  %s tickets" % env["helpdesk.ticket"].search_count([]))
-    print("  %s ratings" % env["whatsapp.rating"].search_count([]))
+    print("  %s ratings" % env["ibq.whatsapp.rating"].search_count([]))
     print("Done. Log in as admin/admin and open WhatsApp > Dashboard.")
 
 

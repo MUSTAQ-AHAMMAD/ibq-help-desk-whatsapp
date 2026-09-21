@@ -35,7 +35,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.team = cls.env["helpdesk.team"].create({"name": "WhatsApp Test Team"})
-        cls.flow = cls.env["whatsapp.bot.flow"].create({
+        cls.flow = cls.env["ibq.whatsapp.bot.flow"].create({
             "name": "Test flow",
             "greeting": "Hello {name}!",
             "agent_keywords": "agent",
@@ -43,36 +43,36 @@ class TestWhatsappHelpdesk(TransactionCase):
             "restart_keywords": "menu",
             "max_invalid_attempts": 2,
         })
-        cls.step_menu = cls.env["whatsapp.bot.step"].create({
+        cls.step_menu = cls.env["ibq.whatsapp.bot.step"].create({
             "flow_id": cls.flow.id, "name": "Menu", "step_type": "menu",
             "body": "Pick one:", "sequence": 10,
         })
-        cls.step_subject = cls.env["whatsapp.bot.step"].create({
+        cls.step_subject = cls.env["ibq.whatsapp.bot.step"].create({
             "flow_id": cls.flow.id, "name": "Subject", "step_type": "question",
             "body": "Describe it.", "answer_key": "subject", "sequence": 20,
         })
-        cls.step_ticket = cls.env["whatsapp.bot.step"].create({
+        cls.step_ticket = cls.env["ibq.whatsapp.bot.step"].create({
             "flow_id": cls.flow.id, "name": "Ticket", "step_type": "ticket",
             "body": "Ticket #{ticket_ref} created.", "team_id": cls.team.id,
             "subject_key": "subject", "sequence": 30,
         })
-        cls.step_agent = cls.env["whatsapp.bot.step"].create({
+        cls.step_agent = cls.env["ibq.whatsapp.bot.step"].create({
             "flow_id": cls.flow.id, "name": "Agent", "step_type": "agent",
             "body": "Connecting you.", "sequence": 40,
         })
         cls.step_subject.next_step_id = cls.step_ticket
         cls.step_ticket.next_step_id = cls.step_agent
         cls.flow.start_step_id = cls.step_menu
-        cls.env["whatsapp.bot.option"].create({
+        cls.env["ibq.whatsapp.bot.option"].create({
             "step_id": cls.step_menu.id, "key": "1", "name": "Technical issue",
             "keywords": "broken,bug", "answer_key": "category",
             "next_step_id": cls.step_subject.id,
         })
-        cls.env["whatsapp.bot.option"].create({
+        cls.env["ibq.whatsapp.bot.option"].create({
             "step_id": cls.step_menu.id, "key": "2", "name": "Talk to an agent",
             "next_step_id": cls.step_agent.id,
         })
-        cls.account = cls.env["whatsapp.account"].create({
+        cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Test sender",
             "account_sid": "AC" + "0" * 32,
             "auth_token": "s3cr3t-token",
@@ -152,7 +152,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_menu_choice_then_ticket_creation(self):
         self._inbound("hi")
         self._inbound("1")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.bot_pending_step_id, self.step_subject)
@@ -170,7 +170,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_menu_matches_keyword_not_only_digit(self):
         self._inbound("hi")
         self._inbound("broken")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.bot_pending_step_id, self.step_subject)
@@ -178,7 +178,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_agent_keyword_short_circuits_the_flow(self):
         self._inbound("hi")
         self._inbound("agent")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.state, "agent")
@@ -188,7 +188,7 @@ class TestWhatsappHelpdesk(TransactionCase):
         self._inbound("hi")
         self._inbound("nonsense one")
         self._inbound("nonsense two")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.state, "agent")
@@ -196,7 +196,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_close_keyword_closes_and_next_message_reopens(self):
         self._inbound("hi")
         self._inbound("stop")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.state, "closed")
@@ -209,7 +209,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_button_payload_is_used_as_the_reply(self):
         self._inbound("hi")
         self._inbound("", ButtonPayload="2")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         self.assertEqual(conversation.state, "agent")
@@ -238,13 +238,13 @@ class TestWhatsappHelpdesk(TransactionCase):
             lambda m: m.direction == "outbound"
         )[:1]
         outbound.twilio_sid = "SM_status_test"
-        self.env["whatsapp.message"]._apply_status_callback({
+        self.env["ibq.whatsapp.message"]._apply_status_callback({
             "MessageSid": "SM_status_test", "MessageStatus": "delivered",
         })
         self.assertEqual(outbound.state, "delivered")
         self.assertTrue(outbound.delivered_date)
 
-        self.env["whatsapp.message"]._apply_status_callback({
+        self.env["ibq.whatsapp.message"]._apply_status_callback({
             "MessageSid": "SM_status_test", "MessageStatus": "failed",
             "ErrorCode": "63016",
         })
@@ -255,7 +255,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     # Templates
     # ------------------------------------------------------------------
     def test_template_rendering(self):
-        template = self.env["whatsapp.template"].create({
+        template = self.env["ibq.whatsapp.template"].create({
             "name": "Ticket update", "code": "test_ticket_update",
             "body": "Ticket #{{1}} is now {{2}}.",
             "variable_ids": [
@@ -278,7 +278,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_agent_chatter_reply_goes_out_over_whatsapp(self):
         self._inbound("hi")
         self._inbound("agent")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         ticket = conversation.ticket_id
@@ -299,7 +299,7 @@ class TestWhatsappHelpdesk(TransactionCase):
     def test_internal_note_is_not_relayed(self):
         self._inbound("hi")
         self._inbound("agent")
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             [("number", "=", "+971501234567")], limit=1
         )
         with patch(SEND_PATH, fake_send):

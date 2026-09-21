@@ -26,7 +26,7 @@ class TestWhatsappIssue(TransactionCase):
     def setUpClass(cls):
         super().setUpClass()
         cls.team = cls.env["helpdesk.team"].create({"name": "Issue Team"})
-        cls.account = cls.env["whatsapp.account"].create({
+        cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Issue sender",
             "account_sid": "AC" + "4" * 32,
             "auth_token": "token",
@@ -36,7 +36,7 @@ class TestWhatsappIssue(TransactionCase):
         })
 
     def _chat(self, number, subject, **values):
-        conversation = self.env["whatsapp.conversation"]._get_or_create(
+        conversation = self.env["ibq.whatsapp.conversation"]._get_or_create(
             self.account, number
         )
         conversation.write(dict({
@@ -72,7 +72,7 @@ class TestWhatsappIssue(TransactionCase):
     def test_similar_subjects_become_one_issue(self):
         first = self._chat("+971570000001", "The office printer is jammed")
         second = self._chat("+971570000002", "printer jammed again")
-        Issue = self.env["whatsapp.issue"]
+        Issue = self.env["ibq.whatsapp.issue"]
         Issue._match_or_create(first)
         Issue._match_or_create(second)
         self.assertTrue(first.issue_id)
@@ -84,7 +84,7 @@ class TestWhatsappIssue(TransactionCase):
     def test_different_subjects_stay_separate(self):
         first = self._chat("+971570000010", "The office printer is jammed")
         second = self._chat("+971570000011", "Refund for the cancelled order")
-        Issue = self.env["whatsapp.issue"]
+        Issue = self.env["ibq.whatsapp.issue"]
         Issue._match_or_create(first)
         Issue._match_or_create(second)
         self.assertNotEqual(first.issue_id, second.issue_id)
@@ -92,7 +92,7 @@ class TestWhatsappIssue(TransactionCase):
 
     def test_a_chat_with_no_words_is_left_unclassified(self):
         conversation = self._chat("+971570000020", "hi")
-        self.assertFalse(self.env["whatsapp.issue"]._match_or_create(conversation))
+        self.assertFalse(self.env["ibq.whatsapp.issue"]._match_or_create(conversation))
         self.assertFalse(conversation.issue_id)
 
     def test_filler_never_becomes_an_issue(self):
@@ -104,22 +104,22 @@ class TestWhatsappIssue(TransactionCase):
             ("+971570000024", "printer"),
         ):
             conversation = self._chat(number, filler)
-            self.env["whatsapp.issue"]._match_or_create(conversation)
+            self.env["ibq.whatsapp.issue"]._match_or_create(conversation)
             self.assertFalse(conversation.issue_id,
                              "%r should not become an issue" % filler)
 
     def test_subject_falls_back_to_the_first_real_message(self):
-        conversation = self.env["whatsapp.conversation"]._get_or_create(
+        conversation = self.env["ibq.whatsapp.conversation"]._get_or_create(
             self.account, "+971570000030"
         )
         for body in ("Hi", "The scanner shows error E-042"):
-            self.env["whatsapp.message"].create({
+            self.env["ibq.whatsapp.message"].create({
                 "conversation_id": conversation.id,
                 "account_id": self.account.id,
                 "direction": "inbound", "number": conversation.number,
                 "body": body, "state": "received",
             })
-        subject = self.env["whatsapp.issue"]._subject_of(conversation)
+        subject = self.env["ibq.whatsapp.issue"]._subject_of(conversation)
         self.assertIn("scanner", subject.lower(),
                       "the opening 'hi' describes nothing and must be skipped")
 
@@ -132,32 +132,32 @@ class TestWhatsappIssue(TransactionCase):
     def test_cron_catches_up(self):
         self._chat("+971570000050", "The payment link expired")
         self._chat("+971570000051", "payment link has expired again")
-        classified = self.env["whatsapp.issue"]._cron_classify()
+        classified = self.env["ibq.whatsapp.issue"]._cron_classify()
         self.assertGreaterEqual(classified, 2)
-        self.assertFalse(self.env["whatsapp.conversation"].search_count([
+        self.assertFalse(self.env["ibq.whatsapp.conversation"].search_count([
             ("number", "in", ["+971570000050", "+971570000051"]),
             ("issue_id", "=", False),
         ]))
 
     def test_empty_issues_are_swept_up(self):
         """An issue with nothing under it makes the reports count phantoms."""
-        orphan = self.env["whatsapp.issue"].create({
+        orphan = self.env["ibq.whatsapp.issue"].create({
             "name": "Nobody raised this", "keywords": "nobody raised",
         })
         self.assertEqual(orphan.occurrence_count, 0)
-        self.env["whatsapp.issue"]._cron_classify()
+        self.env["ibq.whatsapp.issue"]._cron_classify()
         self.assertFalse(orphan.exists())
 
     def test_reclassify_applies_tightened_rules_to_old_data(self):
         """Tuning the matcher has to be applicable to what is already there."""
-        stale = self.env["whatsapp.issue"].create({
+        stale = self.env["ibq.whatsapp.issue"].create({
             "name": "Anyone there?", "keywords": "anyone there",
         })
         conversation = self._chat("+971570000300", "Anyone there?")
         conversation.issue_id = stale
         self.assertEqual(stale.occurrence_count, 1)
 
-        self.env["whatsapp.issue"].action_reclassify_all()
+        self.env["ibq.whatsapp.issue"].action_reclassify_all()
         conversation.invalidate_recordset()
         self.assertFalse(stale.exists(), "filler no longer earns an issue")
         self.assertFalse(conversation.issue_id)
@@ -165,7 +165,7 @@ class TestWhatsappIssue(TransactionCase):
     def test_merging_two_issues(self):
         first = self._chat("+971570000060", "Cannot log in to the portal")
         second = self._chat("+971570000061", "Password reset never arrives")
-        Issue = self.env["whatsapp.issue"]
+        Issue = self.env["ibq.whatsapp.issue"]
         Issue._match_or_create(first)
         Issue._match_or_create(second)
         self.assertNotEqual(first.issue_id, second.issue_id)
@@ -187,9 +187,9 @@ class TestWhatsappIssue(TransactionCase):
             ("+971570000072", "printer is jammed in the office"),
             ("+971570000073", "Wrong item delivered to my address"),
         ):
-            self.env["whatsapp.issue"]._match_or_create(self._chat(number, subject))
+            self.env["ibq.whatsapp.issue"]._match_or_create(self._chat(number, subject))
 
-        report = self.env["whatsapp.dashboard"].get_reports(
+        report = self.env["ibq.whatsapp.dashboard"].get_reports(
             {"period": "30d", "team_id": self.team.id}
         )
         issues = report["issues"]
@@ -203,8 +203,8 @@ class TestWhatsappIssue(TransactionCase):
 
     def test_issue_report_counts_customers_who_came_back(self):
         conversation = self._chat("+971570000080", "Order has not arrived")
-        self.env["whatsapp.issue"]._match_or_create(conversation)
-        report = self.env["whatsapp.dashboard"].get_reports(
+        self.env["ibq.whatsapp.issue"]._match_or_create(conversation)
+        report = self.env["ibq.whatsapp.dashboard"].get_reports(
             {"period": "30d", "team_id": self.team.id}
         )
         self.assertGreaterEqual(report["issues"]["contacts"], 1)
@@ -218,17 +218,17 @@ class TestWhatsappIssue(TransactionCase):
         window.
         """
         conversation = self._chat("+971570000095", "Brand new problem today")
-        self.env["whatsapp.issue"]._match_or_create(conversation)
-        report = self.env["whatsapp.dashboard"].get_reports(
+        self.env["ibq.whatsapp.issue"]._match_or_create(conversation)
+        report = self.env["ibq.whatsapp.dashboard"].get_reports(
             {"period": "30d", "team_id": self.team.id}
         )
         self.assertEqual(report["issues"]["distinct_count"], 1)
 
     def test_issue_export(self):
-        self.env["whatsapp.issue"]._match_or_create(
+        self.env["ibq.whatsapp.issue"]._match_or_create(
             self._chat("+971570000090", "Screen flickers after the update")
         )
-        result = self.env["whatsapp.dashboard"].export_report(
+        result = self.env["ibq.whatsapp.dashboard"].export_report(
             "issues", {"period": "30d", "team_id": self.team.id}
         )
         self.assertTrue(result["name"].endswith(".csv"))
@@ -247,16 +247,16 @@ class TestWhatsappIssue(TransactionCase):
             return "zq" + letters[n // 26] + letters[n % 26]
 
         for index in range(24):
-            self.env["whatsapp.issue"]._match_or_create(self._chat(
+            self.env["ibq.whatsapp.issue"]._match_or_create(self._chat(
                 "+9715701%05d" % index,
                 "%s %s" % (coined(index * 2), coined(index * 2 + 1)),
             ))
         filters = {"period": "30d", "team_id": self.team.id}
-        report = self.env["whatsapp.dashboard"].get_reports(filters)
+        report = self.env["ibq.whatsapp.dashboard"].get_reports(filters)
         self.assertEqual(len(report["issues"]["rows"]), 20, "the panel trims")
         self.assertGreaterEqual(report["issues"]["distinct_count"], 24)
 
-        result = self.env["whatsapp.dashboard"].export_report("issues", filters)
+        result = self.env["ibq.whatsapp.dashboard"].export_report("issues", filters)
         self.assertGreaterEqual(result["rows"], 24, "the export does not trim")
         self.assertFalse(result["truncated"])
 
@@ -266,10 +266,10 @@ class TestWhatsappIssue(TransactionCase):
             ("+971570000201", "office printer jammed again"),
             ("+971570000202", "Wrong item delivered to my address"),
         ):
-            self.env["whatsapp.issue"]._match_or_create(self._chat(number, subject))
+            self.env["ibq.whatsapp.issue"]._match_or_create(self._chat(number, subject))
 
         filters = {"period": "30d", "team_id": self.team.id}
-        header, rows = self.env["whatsapp.dashboard"]._csv_issue_details(filters)
+        header, rows = self.env["ibq.whatsapp.dashboard"]._csv_issue_details(filters)
         self.assertEqual(len(rows), 3, "one row per conversation, not per issue")
         for column in ("Issue", "Type", "Issue tags", "Number", "Agent",
                        "Ticket", "First response (s)", "Rating"):
@@ -281,10 +281,10 @@ class TestWhatsappIssue(TransactionCase):
         self.assertEqual(kinds, {"repeated", "unique"})
 
     def test_conversation_export_carries_the_issue(self):
-        self.env["whatsapp.issue"]._match_or_create(
+        self.env["ibq.whatsapp.issue"]._match_or_create(
             self._chat("+971570000210", "Cannot log in to the portal")
         )
-        header, rows = self.env["whatsapp.dashboard"]._csv_conversations(
+        header, rows = self.env["ibq.whatsapp.dashboard"]._csv_conversations(
             {"period": "30d", "team_id": self.team.id}
         )
         self.assertIn("Issue", header)
@@ -294,7 +294,7 @@ class TestWhatsappIssue(TransactionCase):
     def test_unknown_export_kind_is_still_refused(self):
         from odoo.exceptions import UserError
         with self.assertRaises(UserError):
-            self.env["whatsapp.dashboard"].export_report("issue_detail", {})
+            self.env["ibq.whatsapp.dashboard"].export_report("issue_detail", {})
 
     # ==================================================================
     # The transcript on the ticket
@@ -306,7 +306,7 @@ class TestWhatsappIssue(TransactionCase):
             ("outbound", "Hello! What can we help with?", True),
             ("inbound", "The office printer is jammed", False),
         ):
-            self.env["whatsapp.message"].create({
+            self.env["ibq.whatsapp.message"].create({
                 "conversation_id": conversation.id,
                 "account_id": self.account.id,
                 "direction": direction, "number": conversation.number,
@@ -376,7 +376,7 @@ class TestWhatsappIssue(TransactionCase):
         so the naive version printed a literal "<br/>" to the reader.
         """
         conversation = self._chat("+971570000106", "Menu test")
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id,
             "account_id": self.account.id,
             "direction": "outbound", "number": conversation.number,
@@ -395,7 +395,7 @@ class TestWhatsappIssue(TransactionCase):
         agent = self.env["res.users"].create({
             "name": "Cara Agent", "login": "cara_i", "email": "cara@example.com",
         })
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id,
             "account_id": self.account.id,
             "direction": "outbound", "number": conversation.number,
@@ -410,7 +410,7 @@ class TestWhatsappIssue(TransactionCase):
 
     def test_message_bodies_are_escaped_not_rendered(self):
         conversation = self._chat("+971570000105", "Script test")
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "conversation_id": conversation.id,
             "account_id": self.account.id,
             "direction": "inbound", "number": conversation.number,

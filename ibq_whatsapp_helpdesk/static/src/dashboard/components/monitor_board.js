@@ -41,7 +41,7 @@ export class MonitorBoard extends Component {
             this.state.loading = true;
         }
         try {
-            const data = await this.orm.call("whatsapp.dashboard", "get_monitoring", []);
+            const data = await this.orm.call("ibq.whatsapp.dashboard", "get_monitoring", []);
             this.state.columns = data.columns;
             this.state.agents = data.agents;
             this.state.stamp = data.generated_at;
@@ -52,7 +52,7 @@ export class MonitorBoard extends Component {
 
     async claim(conversation) {
         try {
-            await this.orm.call("whatsapp.dashboard", "act_on_conversation", [
+            await this.orm.call("ibq.whatsapp.dashboard", "act_on_conversation", [
                 conversation.id, "take_over",
             ]);
             await this.load(true);

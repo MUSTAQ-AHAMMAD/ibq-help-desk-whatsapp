@@ -9,13 +9,13 @@ SENTIMENT_BANDS = ((4, "happy"), (3, "neutral"), (0, "unhappy"))
 class WhatsappRating(models.Model):
     """A customer satisfaction score collected at the end of a chat."""
 
-    _name = "whatsapp.rating"
+    _name = "ibq.whatsapp.rating"
     _description = "WhatsApp Satisfaction Rating"
     _order = "create_date desc"
     _rec_name = "score"
 
     conversation_id = fields.Many2one(
-        "whatsapp.conversation", required=True, ondelete="cascade", index=True
+        "ibq.whatsapp.conversation", required=True, ondelete="cascade", index=True
     )
     ticket_id = fields.Many2one(
         related="conversation_id.ticket_id", store=True, string="Ticket"

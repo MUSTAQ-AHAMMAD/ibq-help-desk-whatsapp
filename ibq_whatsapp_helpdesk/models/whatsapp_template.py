@@ -18,7 +18,7 @@ class WhatsappTemplate(models.Model):
     body locally for the chatter and map placeholders to record fields.
     """
 
-    _name = "whatsapp.template"
+    _name = "ibq.whatsapp.template"
     _description = "WhatsApp Template"
     _order = "name"
 
@@ -33,13 +33,13 @@ class WhatsappTemplate(models.Model):
         help="Starts with 'HX'. Copy it from Twilio > Content Template Builder. "
              "Required to send outside the 24h session window.",
     )
-    account_id = fields.Many2one("whatsapp.account", string="Account")
+    account_id = fields.Many2one("ibq.whatsapp.account", string="Account")
     body = fields.Text(
         required=True,
         help="Template body using Twilio numbered placeholders: {{1}}, {{2}}, ...",
     )
     variable_ids = fields.One2many(
-        "whatsapp.template.variable", "template_id", string="Variables"
+        "ibq.whatsapp.template.variable", "template_id", string="Variables"
     )
     model_id = fields.Many2one(
         "ir.model", string="Applies to",
@@ -125,11 +125,11 @@ class WhatsappTemplate(models.Model):
         number = self.env.user.partner_id.mobile or self.env.user.partner_id.phone
         if not number:
             raise UserError(_("Set a mobile number on your own contact first."))
-        account = self.account_id or self.env["whatsapp.account"]._get_default_account()
+        account = self.account_id or self.env["ibq.whatsapp.account"]._get_default_account()
         if not account:
             raise UserError(_("No WhatsApp account is configured."))
         body, content_variables = self.render()
-        self.env["whatsapp.message"].create({
+        self.env["ibq.whatsapp.message"].create({
             "account_id": account.id,
             "direction": "outbound",
             "number": number,
@@ -151,12 +151,12 @@ class WhatsappTemplate(models.Model):
 
 
 class WhatsappTemplateVariable(models.Model):
-    _name = "whatsapp.template.variable"
+    _name = "ibq.whatsapp.template.variable"
     _description = "WhatsApp Template Variable"
     _order = "index"
 
     template_id = fields.Many2one(
-        "whatsapp.template", required=True, ondelete="cascade"
+        "ibq.whatsapp.template", required=True, ondelete="cascade"
     )
     index = fields.Integer(required=True, help="The N in {{N}}.")
     name = fields.Char(required=True, help="What this placeholder stands for.")

@@ -80,7 +80,7 @@ export class AgentRoster extends Component {
         this.state.newRole = "agent";
         this.state.departmentIds = [];
         this.state.candidates = await this.orm.call(
-            "whatsapp.dashboard", "get_candidate_users", []
+            "ibq.whatsapp.dashboard", "get_candidate_users", []
         );
     }
 
@@ -91,7 +91,7 @@ export class AgentRoster extends Component {
     async onSearch(ev) {
         this.state.search = ev.target.value;
         this.state.candidates = await this.orm.call(
-            "whatsapp.dashboard", "get_candidate_users", [this.state.search]
+            "ibq.whatsapp.dashboard", "get_candidate_users", [this.state.search]
         );
     }
 
@@ -123,7 +123,7 @@ export class AgentRoster extends Component {
         }
         this.state.busy = true;
         try {
-            const agents = await this.orm.call("whatsapp.dashboard", "add_agents", [
+            const agents = await this.orm.call("ibq.whatsapp.dashboard", "add_agents", [
                 this.state.selected, this.state.departmentIds,
             ], { role: this.state.newRole });
             this.props.onAgentsChanged(agents);
@@ -188,7 +188,7 @@ export class AgentRoster extends Component {
 
     async update(agent, values) {
         try {
-            const agents = await this.orm.call("whatsapp.dashboard", "update_agent", [
+            const agents = await this.orm.call("ibq.whatsapp.dashboard", "update_agent", [
                 agent.id, values,
             ]);
             this.props.onAgentsChanged(agents);
@@ -199,7 +199,7 @@ export class AgentRoster extends Component {
 
     async remove(agent) {
         try {
-            const agents = await this.orm.call("whatsapp.dashboard", "remove_agent", [agent.id]);
+            const agents = await this.orm.call("ibq.whatsapp.dashboard", "remove_agent", [agent.id]);
             this.props.onAgentsChanged(agents);
             this.notification.add(_t("%s removed from the team.", agent.name), {
                 type: "info",

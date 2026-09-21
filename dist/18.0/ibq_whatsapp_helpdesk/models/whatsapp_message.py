@@ -36,14 +36,14 @@ TWILIO_STATUS_MAP = {
 
 
 class WhatsappMessage(models.Model):
-    _name = "whatsapp.message"
+    _name = "ibq.whatsapp.message"
     _description = "WhatsApp Message"
     _order = "id desc"
 
     conversation_id = fields.Many2one(
-        "whatsapp.conversation", ondelete="cascade", index=True
+        "ibq.whatsapp.conversation", ondelete="cascade", index=True
     )
-    account_id = fields.Many2one("whatsapp.account", required=True, index=True)
+    account_id = fields.Many2one("ibq.whatsapp.account", required=True, index=True)
     direction = fields.Selection(
         [("inbound", "Inbound"), ("outbound", "Outbound")],
         required=True, index=True,
@@ -59,7 +59,7 @@ class WhatsappMessage(models.Model):
         [("text", "Text"), ("template", "Template"), ("media", "Media")],
         default="text", required=True,
     )
-    template_id = fields.Many2one("whatsapp.template", string="Template")
+    template_id = fields.Many2one("ibq.whatsapp.template", string="Template")
     content_variables = fields.Char(
         help="JSON payload sent to Twilio as ContentVariables.",
     )

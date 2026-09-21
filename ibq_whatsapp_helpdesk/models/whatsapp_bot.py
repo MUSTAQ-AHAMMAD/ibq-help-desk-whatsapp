@@ -16,15 +16,15 @@ class WhatsappBotFlow(models.Model):
     leads can change the script without touching Python.
     """
 
-    _name = "whatsapp.bot.flow"
+    _name = "ibq.whatsapp.bot.flow"
     _description = "WhatsApp Bot Flow"
     _order = "name"
 
     name = fields.Char(required=True)
     active = fields.Boolean(default=True)
-    step_ids = fields.One2many("whatsapp.bot.step", "flow_id", string="Steps")
+    step_ids = fields.One2many("ibq.whatsapp.bot.step", "flow_id", string="Steps")
     start_step_id = fields.Many2one(
-        "whatsapp.bot.step", string="First Step",
+        "ibq.whatsapp.bot.step", string="First Step",
         domain="[('flow_id', '=', id)]",
         help="Step played when a chat starts, or restarts after being idle.",
     )
@@ -68,12 +68,12 @@ class WhatsappBotFlow(models.Model):
 
 
 class WhatsappBotStep(models.Model):
-    _name = "whatsapp.bot.step"
+    _name = "ibq.whatsapp.bot.step"
     _description = "WhatsApp Bot Step"
     _order = "flow_id, sequence, id"
 
     flow_id = fields.Many2one(
-        "whatsapp.bot.flow", required=True, ondelete="cascade", index=True
+        "ibq.whatsapp.bot.flow", required=True, ondelete="cascade", index=True
     )
     name = fields.Char(required=True)
     sequence = fields.Integer(default=10)
@@ -93,9 +93,9 @@ class WhatsappBotStep(models.Model):
         help="Text sent to the customer. Supports {name} and {answer_key} "
              "placeholders filled from the collected answers.",
     )
-    option_ids = fields.One2many("whatsapp.bot.option", "step_id", string="Options")
+    option_ids = fields.One2many("ibq.whatsapp.bot.option", "step_id", string="Options")
     next_step_id = fields.Many2one(
-        "whatsapp.bot.step", string="Next Step",
+        "ibq.whatsapp.bot.step", string="Next Step",
         domain="[('flow_id', '=', flow_id), ('id', '!=', id)]",
         help="Where to go once this step is done. Leave empty to stop here.",
     )
@@ -144,7 +144,7 @@ class WhatsappBotStep(models.Model):
         self.ensure_one()
         needle = (text or "").strip().lower()
         if not needle:
-            return self.env["whatsapp.bot.option"]
+            return self.env["ibq.whatsapp.bot.option"]
         for option in self.option_ids.sorted("sequence"):
             if needle == (option.key or "").strip().lower():
                 return option
@@ -152,7 +152,7 @@ class WhatsappBotStep(models.Model):
                         for k in (option.keywords or "").split(",") if k.strip()]
             if needle in keywords or needle == (option.name or "").strip().lower():
                 return option
-        return self.env["whatsapp.bot.option"]
+        return self.env["ibq.whatsapp.bot.option"]
 
     def _validate_answer(self, text):
         value = (text or "").strip()
@@ -166,12 +166,12 @@ class WhatsappBotStep(models.Model):
 
 
 class WhatsappBotOption(models.Model):
-    _name = "whatsapp.bot.option"
+    _name = "ibq.whatsapp.bot.option"
     _description = "WhatsApp Bot Menu Option"
     _order = "sequence, id"
 
     step_id = fields.Many2one(
-        "whatsapp.bot.step", required=True, ondelete="cascade", index=True
+        "ibq.whatsapp.bot.step", required=True, ondelete="cascade", index=True
     )
     sequence = fields.Integer(default=10)
     key = fields.Char(
@@ -184,7 +184,7 @@ class WhatsappBotOption(models.Model):
              "e.g. 'billing,invoice,payment'.",
     )
     next_step_id = fields.Many2one(
-        "whatsapp.bot.step", string="Go To",
+        "ibq.whatsapp.bot.step", string="Go To",
         help="Step played when this option is picked.",
     )
     answer_key = fields.Char(

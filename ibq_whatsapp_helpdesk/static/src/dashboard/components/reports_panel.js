@@ -43,7 +43,7 @@ export class ReportsPanel extends Component {
         this.state.loading = true;
         try {
             this.state.reports = await this.orm.call(
-                "whatsapp.dashboard", "get_reports", [], {
+                "ibq.whatsapp.dashboard", "get_reports", [], {
                     filters: { ...(filters || this.props.filters) },
                 }
             );
@@ -55,7 +55,7 @@ export class ReportsPanel extends Component {
     async exportCsv(kind) {
         this.state.exporting = true;
         try {
-            const result = await this.orm.call("whatsapp.dashboard", "export_report", [kind], {
+            const result = await this.orm.call("ibq.whatsapp.dashboard", "export_report", [kind], {
                 filters: { ...this.props.filters },
             });
             this.action.doAction({
@@ -137,7 +137,7 @@ export class ReportsPanel extends Component {
     openIssue(issue) {
         this.action.doAction({
             type: "ir.actions.act_window",
-            res_model: "whatsapp.issue",
+            res_model: "ibq.whatsapp.issue",
             res_id: issue.id,
             views: [[false, "form"]],
         });

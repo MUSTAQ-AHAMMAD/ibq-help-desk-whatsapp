@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_invite_member_form" model="ir.ui.view">
         <field name="name">whatsapp.invite.member.form</field>
-        <field name="model">whatsapp.invite.member</field>
+        <field name="model">ibq.whatsapp.invite.member</field>
         <field name="arch" type="xml">
             <form string="Add Team Members">
                 <field name="existing_user_ids" invisible="1"/>
@@ -49,7 +49,7 @@
 
     <record id="action_whatsapp_invite_member" model="ir.actions.act_window">
         <field name="name">Add Team Members</field>
-        <field name="res_model">whatsapp.invite.member</field>
+        <field name="res_model">ibq.whatsapp.invite.member</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
     </record>

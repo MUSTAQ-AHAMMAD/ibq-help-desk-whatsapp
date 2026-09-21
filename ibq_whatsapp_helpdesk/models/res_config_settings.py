@@ -6,7 +6,7 @@ class ResConfigSettings(models.TransientModel):
     _inherit = "res.config.settings"
 
     whatsapp_default_account_id = fields.Many2one(
-        "whatsapp.account", string="Default WhatsApp Account",
+        "ibq.whatsapp.account", string="Default WhatsApp Account",
         config_parameter="ibq_whatsapp.default_account_id",
     )
     whatsapp_activity_on_reply = fields.Boolean(

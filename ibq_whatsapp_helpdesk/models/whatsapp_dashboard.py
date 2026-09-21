@@ -59,7 +59,7 @@ def _as_date(value):
 
 
 class WhatsappDashboard(models.TransientModel):
-    _name = "whatsapp.dashboard"
+    _name = "ibq.whatsapp.dashboard"
     _description = "WhatsApp Dashboard"
 
     # ==================================================================
@@ -67,7 +67,7 @@ class WhatsappDashboard(models.TransientModel):
     # ==================================================================
     @api.model
     def _me(self):
-        return self.env["whatsapp.agent"]._current()
+        return self.env["ibq.whatsapp.agent"]._current()
 
     @api.model
     def _rights(self):
@@ -83,7 +83,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def _assert(self, right):
-        return self.env["whatsapp.agent"]._assert_right(right)
+        return self.env["ibq.whatsapp.agent"]._assert_right(right)
 
     @api.model
     def _scope_domain(self):
@@ -190,7 +190,7 @@ class WhatsappDashboard(models.TransientModel):
             "accounts": [
                 {"id": a.id, "name": a.name, "number": a.phone_number or "",
                  "state": a.state}
-                for a in self.env["whatsapp.account"].search([])
+                for a in self.env["ibq.whatsapp.account"].search([])
             ],
             "periods": [
                 {"key": "today", "label": _("Today")},
@@ -209,8 +209,8 @@ class WhatsappDashboard(models.TransientModel):
         start, end, prev_start = self._period_bounds(filters)
         scope = self._report_domain()
         extra = self._filter_domain(filters)
-        conversations = self.env["whatsapp.conversation"]
-        messages = self.env["whatsapp.message"]
+        conversations = self.env["ibq.whatsapp.conversation"]
+        messages = self.env["ibq.whatsapp.message"]
 
         window = scope + extra + [("create_date", ">=", start), ("create_date", "<", end)]
         prev = scope + extra + [("create_date", ">=", prev_start), ("create_date", "<", start)]
@@ -293,7 +293,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def _average_response(self, domain, start, end):
-        answered = self.env["whatsapp.conversation"].search(
+        answered = self.env["ibq.whatsapp.conversation"].search(
             domain + [("first_response_seconds", ">", 0),
                       ("handoff_date", ">=", start), ("handoff_date", "<", end)]
         )
@@ -307,7 +307,7 @@ class WhatsappDashboard(models.TransientModel):
         domain += self._filter_domain(filters)
         if "view_all_reports" not in self._rights():
             domain.append(("user_id", "=", self.env.uid))
-        ratings = self.env["whatsapp.rating"].search(domain)
+        ratings = self.env["ibq.whatsapp.rating"].search(domain)
         if not ratings:
             return 0, 0
         average = sum(ratings.mapped("score_value")) / len(ratings)
@@ -315,7 +315,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def _live_counts(self, scope):
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
         return {
             "waiting": conversations.search_count(
                 scope + [("state", "=", "agent"), ("needs_reply", "=", True)]
@@ -325,7 +325,7 @@ class WhatsappDashboard(models.TransientModel):
             ),
             "with_bot": conversations.search_count(scope + [("state", "=", "bot")]),
             "open": conversations.search_count(scope + [("state", "!=", "closed")]),
-            "agents_online": self.env["whatsapp.agent"].search_count(
+            "agents_online": self.env["ibq.whatsapp.agent"].search_count(
                 [("status", "=", "available")]
             ),
         }
@@ -333,7 +333,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def _get_series(self, start, end, scope, msg_scope):
         """Daily volume, the current state mix, and the priority split."""
-        messages = self.env["whatsapp.message"]
+        messages = self.env["ibq.whatsapp.message"]
         window = [("create_date", ">=", start), ("create_date", "<", end)]
 
         def bucket(direction):
@@ -360,7 +360,7 @@ class WhatsappDashboard(models.TransientModel):
         # A 12-month window would render 365 unreadable bars; keep the tail.
         volume = volume[-31:]
 
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
         mix = [
             {"key": "bot", "label": _("With bot"),
              "value": conversations.search_count(scope + [("state", "=", "bot")])},
@@ -378,7 +378,7 @@ class WhatsappDashboard(models.TransientModel):
     def get_monitoring(self):
         """A live board: three columns of chats plus who is on shift."""
         scope = self._scope_domain()
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
         columns = []
         for key, label, domain, order in (
             ("waiting", _("Waiting"),
@@ -409,7 +409,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def get_conversations(self, scope="waiting", search=None, filters=None, limit=60):
         base = self._scope_domain() + self._filter_domain(filters)
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
 
         def scope_domain(key):
             domain = list(QUEUE_SCOPES.get(key, QUEUE_SCOPES["waiting"]))
@@ -440,7 +440,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def _get_conversation(self, conversation_id):
         """Fetch one conversation, refusing anything outside the caller's scope."""
-        conversation = self.env["whatsapp.conversation"].search(
+        conversation = self.env["ibq.whatsapp.conversation"].search(
             self._scope_domain() + [("id", "=", conversation_id)], limit=1
         )
         if not conversation:
@@ -480,7 +480,7 @@ class WhatsappDashboard(models.TransientModel):
             body = "%s\n%s" % (body, agent.signature)
         conversation.send_text(body)
         if canned_id:
-            self.env["whatsapp.canned.response"].browse(canned_id)._register_use()
+            self.env["ibq.whatsapp.canned.response"].browse(canned_id)._register_use()
         return conversation._chat_payload()
 
     @api.model
@@ -555,10 +555,10 @@ class WhatsappDashboard(models.TransientModel):
     # ==================================================================
     @api.model
     def get_canned_responses(self, search=None, conversation_id=None):
-        conversation = self.env["whatsapp.conversation"]
+        conversation = self.env["ibq.whatsapp.conversation"]
         if conversation_id:
             conversation = self._get_conversation(conversation_id)
-        records = self.env["whatsapp.canned.response"]._search_for_agent(
+        records = self.env["ibq.whatsapp.canned.response"]._search_for_agent(
             search, conversation.team_id
         )
         return [r._payload(conversation) for r in records]
@@ -576,7 +576,7 @@ class WhatsappDashboard(models.TransientModel):
         values["owner_id"] = self.env.uid if is_private else False
         if not is_private:
             self._assert("manage_canned")
-        model = self.env["whatsapp.canned.response"]
+        model = self.env["ibq.whatsapp.canned.response"]
         if canned_id:
             record = model.browse(canned_id)
             if record.owner_id and record.owner_id != self.env.user:
@@ -590,7 +590,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def delete_canned_response(self, canned_id):
-        record = self.env["whatsapp.canned.response"].browse(canned_id)
+        record = self.env["ibq.whatsapp.canned.response"].browse(canned_id)
         if record.owner_id and record.owner_id != self.env.user:
             raise AccessError(_("That saved reply belongs to someone else."))
         if not record.owner_id:
@@ -603,12 +603,12 @@ class WhatsappDashboard(models.TransientModel):
     # ==================================================================
     @api.model
     def get_tags(self):
-        return [t._payload() for t in self.env["whatsapp.tag"].search([])]
+        return [t._payload() for t in self.env["ibq.whatsapp.tag"].search([])]
 
     @api.model
     def save_tag(self, values, tag_id=None):
         self._assert("manage_tags")
-        model = self.env["whatsapp.tag"]
+        model = self.env["ibq.whatsapp.tag"]
         if tag_id:
             model.browse(tag_id).write(values)
         else:
@@ -618,7 +618,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def delete_tag(self, tag_id):
         self._assert("manage_tags")
-        self.env["whatsapp.tag"].browse(tag_id).unlink()
+        self.env["ibq.whatsapp.tag"].browse(tag_id).unlink()
         return self.get_tags()
 
     # ==================================================================
@@ -644,14 +644,14 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def _report_leaderboard(self, scope, start, end):
         """Per-agent throughput and quality over the window."""
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
         handled = conversations._read_group(
             scope + [("handoff_date", ">=", start), ("handoff_date", "<", end),
                      ("user_id", "!=", False)],
             ["user_id"],
             ["__count", "first_response_seconds:avg", "resolution_seconds:avg"],
         )
-        ratings = self.env["whatsapp.rating"]._read_group(
+        ratings = self.env["ibq.whatsapp.rating"]._read_group(
             [("create_date", ">=", start), ("create_date", "<", end),
              ("user_id", "!=", False)],
             ["user_id"], ["__count", "score_value:avg"],
@@ -660,7 +660,7 @@ class WhatsappDashboard(models.TransientModel):
             user.id: {"count": count, "avg": average or 0}
             for user, count, average in ratings
         }
-        agents = {a.user_id.id: a for a in self.env["whatsapp.agent"].search([])}
+        agents = {a.user_id.id: a for a in self.env["ibq.whatsapp.agent"].search([])}
 
         rows = []
         for user, count, avg_response, avg_resolution in handled:
@@ -689,7 +689,7 @@ class WhatsappDashboard(models.TransientModel):
         domain += self._filter_domain(filters, prefix="conversation_id.")
         domain += [("direction", "=", "inbound"),
                    ("create_date", ">=", start), ("create_date", "<", end)]
-        groups = self.env["whatsapp.message"]._read_group(
+        groups = self.env["ibq.whatsapp.message"]._read_group(
             domain, ["create_date:hour"], ["__count"]
         )
         # Python's weekday(): Monday is 0, which is the order we render.
@@ -710,7 +710,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def _report_tags(self, window):
-        groups = self.env["whatsapp.conversation"]._read_group(
+        groups = self.env["ibq.whatsapp.conversation"]._read_group(
             window + [("tag_ids", "!=", False)], ["tag_ids"], ["__count"]
         )
         rows = [
@@ -718,14 +718,14 @@ class WhatsappDashboard(models.TransientModel):
             for tag, count in groups
         ]
         rows.sort(key=lambda r: -r["value"])
-        untagged = self.env["whatsapp.conversation"].search_count(
+        untagged = self.env["ibq.whatsapp.conversation"].search_count(
             window + [("tag_ids", "=", False)]
         )
         return {"rows": rows[:12], "untagged": untagged}
 
     @api.model
     def _report_departments(self, window):
-        groups = self.env["whatsapp.conversation"]._read_group(
+        groups = self.env["ibq.whatsapp.conversation"]._read_group(
             window, ["team_id"], ["__count", "first_response_seconds:avg"]
         )
         return sorted(
@@ -748,13 +748,13 @@ class WhatsappDashboard(models.TransientModel):
         The headline a support lead wants is not "how many tickets" but "how
         many *different problems*, and which ones keep coming back".
         """
-        conversations = self.env["whatsapp.conversation"].search(
+        conversations = self.env["ibq.whatsapp.conversation"].search(
             window + [("issue_id", "!=", False)]
         )
         by_issue = {}
         for conversation in conversations:
             entry = by_issue.setdefault(conversation.issue_id, {
-                "conversations": self.env["whatsapp.conversation"],
+                "conversations": self.env["ibq.whatsapp.conversation"],
                 "numbers": set(),
             })
             entry["conversations"] |= conversation
@@ -788,14 +788,14 @@ class WhatsappDashboard(models.TransientModel):
         repeated = [r for r in rows if r["kind"] == "repeated"]
         unique = [r for r in rows if r["kind"] == "unique"]
         classified = sum(r["count"] for r in rows)
-        unclassified = self.env["whatsapp.conversation"].search_count(
+        unclassified = self.env["ibq.whatsapp.conversation"].search_count(
             window + [("issue_id", "=", False)]
         )
 
         # Customers who came back, which is a different question from whether
         # the issue repeats across different people.
         seen = {}
-        for conversation in self.env["whatsapp.conversation"].search(window):
+        for conversation in self.env["ibq.whatsapp.conversation"].search(window):
             seen[conversation.number] = seen.get(conversation.number, 0) + 1
         repeat_contacts = sum(1 for count in seen.values() if count > 1)
 
@@ -820,7 +820,7 @@ class WhatsappDashboard(models.TransientModel):
         domain += self._filter_domain(filters)
         if "view_all_reports" not in self._rights():
             domain.append(("user_id", "=", self.env.uid))
-        groups = self.env["whatsapp.rating"]._read_group(domain, ["score"], ["__count"])
+        groups = self.env["ibq.whatsapp.rating"]._read_group(domain, ["score"], ["__count"])
         counts = {score: count for score, count in groups}
         total = sum(counts.values())
         distribution = [
@@ -840,7 +840,7 @@ class WhatsappDashboard(models.TransientModel):
                 {"score": r.score_value, "comment": r.comment,
                  "partner": r.partner_id.display_name or "",
                  "date": fields.Datetime.to_string(r.create_date)}
-                for r in self.env["whatsapp.rating"].search(
+                for r in self.env["ibq.whatsapp.rating"].search(
                     domain + [("comment", "!=", False)], limit=8
                 )
             ],
@@ -849,7 +849,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def _report_response_buckets(self, scope, start, end):
         """How long customers actually wait, in readable bands."""
-        records = self.env["whatsapp.conversation"].search_read(
+        records = self.env["ibq.whatsapp.conversation"].search_read(
             scope + [("first_response_seconds", ">", 0),
                      ("handoff_date", ">=", start), ("handoff_date", "<", end)],
             ["first_response_seconds"],
@@ -953,7 +953,7 @@ class WhatsappDashboard(models.TransientModel):
         domain = self._report_domain() + self._filter_domain(filters)
         domain += [("create_date", ">=", start), ("create_date", "<", end),
                    ("issue_id", "!=", False)]
-        return self.env["whatsapp.conversation"].search(
+        return self.env["ibq.whatsapp.conversation"].search(
             domain, limit=EXPORT_LIMIT, order="issue_id, create_date"
         )
 
@@ -963,7 +963,7 @@ class WhatsappDashboard(models.TransientModel):
         by_issue = {}
         for conversation in conversations:
             by_issue.setdefault(
-                conversation.issue_id, self.env["whatsapp.conversation"]
+                conversation.issue_id, self.env["ibq.whatsapp.conversation"]
             )
             by_issue[conversation.issue_id] |= conversation
 
@@ -1012,7 +1012,7 @@ class WhatsappDashboard(models.TransientModel):
                   "Rating comment"]
         rows = []
         priorities = dict(
-            self.env["whatsapp.conversation"]._fields["priority"].selection
+            self.env["ibq.whatsapp.conversation"]._fields["priority"].selection
         )
         for conversation in self._issue_conversations(filters):
             issue = conversation.issue_id
@@ -1051,7 +1051,7 @@ class WhatsappDashboard(models.TransientModel):
         start, end, _prev = self._period_bounds(filters)
         domain = self._report_domain() + self._filter_domain(filters)
         domain += [("create_date", ">=", start), ("create_date", "<", end)]
-        records = self.env["whatsapp.conversation"].search(
+        records = self.env["ibq.whatsapp.conversation"].search(
             domain, limit=EXPORT_LIMIT, order="create_date"
         )
         header = ["Opened", "Number", "Contact", "Department", "Agent", "State",
@@ -1084,7 +1084,7 @@ class WhatsappDashboard(models.TransientModel):
                        ("number", "ilike", search),
                        ("partner_id.name", "ilike", search),
                        ("profile_name", "ilike", search)]
-        conversations = self.env["whatsapp.conversation"].search(
+        conversations = self.env["ibq.whatsapp.conversation"].search(
             domain, order="last_message_date desc"
         )
         # Group by number rather than partner: an unknown number has no partner
@@ -1111,7 +1111,7 @@ class WhatsappDashboard(models.TransientModel):
                 "tags": [t._payload() for t in conversation.tag_ids],
                 "rating": conversation.rating_score or 0,
                 "blocked": bool(
-                    self.env["whatsapp.blocklist"]._entry_for(conversation.number)
+                    self.env["ibq.whatsapp.blocklist"]._entry_for(conversation.number)
                 ),
             }
             seen[key] = entry
@@ -1124,13 +1124,13 @@ class WhatsappDashboard(models.TransientModel):
     # ==================================================================
     @api.model
     def get_blocklist(self):
-        return [b._payload() for b in self.env["whatsapp.blocklist"].search([])]
+        return [b._payload() for b in self.env["ibq.whatsapp.blocklist"].search([])]
 
     @api.model
     def block_number(self, number, reason="spam", note=None):
         self._assert("block")
-        entry = self.env["whatsapp.blocklist"]._block(number, reason, note)
-        conversation = self.env["whatsapp.conversation"].sudo().search(
+        entry = self.env["ibq.whatsapp.blocklist"]._block(number, reason, note)
+        conversation = self.env["ibq.whatsapp.conversation"].sudo().search(
             [("number", "=", entry.number)], limit=1
         )
         if conversation and conversation.state != "closed":
@@ -1140,7 +1140,7 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def unblock_number(self, blocklist_id):
         self._assert("block")
-        self.env["whatsapp.blocklist"].browse(blocklist_id).unlink()
+        self.env["ibq.whatsapp.blocklist"].browse(blocklist_id).unlink()
         return self.get_blocklist()
 
     # ==================================================================
@@ -1148,7 +1148,7 @@ class WhatsappDashboard(models.TransientModel):
     # ==================================================================
     @api.model
     def get_agents(self):
-        agents = self.env["whatsapp.agent"].sudo().search([])
+        agents = self.env["ibq.whatsapp.agent"].sudo().search([])
         return [agent._dashboard_payload() for agent in agents]
 
     @api.model
@@ -1162,7 +1162,7 @@ class WhatsappDashboard(models.TransientModel):
     def get_candidate_users(self, search=None, limit=20):
         """Internal users who are not on the roster yet."""
         self._assert("manage_roster")
-        existing = self.env["whatsapp.agent"].sudo().search([]).user_id.ids
+        existing = self.env["ibq.whatsapp.agent"].sudo().search([]).user_id.ids
         domain = [("share", "=", False), ("active", "=", True),
                   ("id", "not in", existing)]
         if search:
@@ -1184,7 +1184,7 @@ class WhatsappDashboard(models.TransientModel):
                 "Ownership is transferred, not granted: add the person first, "
                 "then promote them to Owner."
             ))
-        agents = self.env["whatsapp.agent"].sudo()
+        agents = self.env["ibq.whatsapp.agent"].sudo()
         for user_id in user_ids or []:
             if agents.search_count([("user_id", "=", user_id)]):
                 continue
@@ -1198,12 +1198,12 @@ class WhatsappDashboard(models.TransientModel):
     @api.model
     def remove_agent(self, agent_id):
         me = self._assert("manage_roster")
-        agent = self.env["whatsapp.agent"].sudo().browse(agent_id)
+        agent = self.env["ibq.whatsapp.agent"].sudo().browse(agent_id)
         if agent.role == "owner":
             raise UserError(_("The Owner cannot be removed. Transfer ownership first."))
         if me and not me.can_act_on(agent):
             raise AccessError(_("Your role does not allow removing %s.") % agent.user_id.name)
-        open_chats = self.env["whatsapp.conversation"].sudo().search_count([
+        open_chats = self.env["ibq.whatsapp.conversation"].sudo().search_count([
             ("user_id", "=", agent.user_id.id), ("state", "!=", "closed"),
         ])
         if open_chats:
@@ -1222,7 +1222,7 @@ class WhatsappDashboard(models.TransientModel):
         else needs the roster right, and role changes need seniority over the
         person being changed.
         """
-        agent = self.env["whatsapp.agent"].sudo().browse(agent_id)
+        agent = self.env["ibq.whatsapp.agent"].sudo().browse(agent_id)
         me = self._me()
         touched = set(values)
         own_settings = touched <= {"status", "signature", "display_alias"}
@@ -1248,7 +1248,7 @@ class WhatsappDashboard(models.TransientModel):
 
     @api.model
     def set_my_status(self, status):
-        agent = self.env["whatsapp.agent"]._current()
+        agent = self.env["ibq.whatsapp.agent"]._current()
         if not agent:
             raise UserError(_(
                 "You are not on the WhatsApp agent roster yet. Ask an "

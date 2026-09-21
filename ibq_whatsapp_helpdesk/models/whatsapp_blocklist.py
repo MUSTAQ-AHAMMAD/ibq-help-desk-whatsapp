@@ -12,7 +12,7 @@ class WhatsappBlocklist(models.Model):
     back: replying would confirm the number is live.
     """
 
-    _name = "whatsapp.blocklist"
+    _name = "ibq.whatsapp.blocklist"
     _description = "WhatsApp Blocked Number"
     _order = "create_date desc"
     _rec_name = "number"

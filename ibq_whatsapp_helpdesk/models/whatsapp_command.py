@@ -26,7 +26,7 @@ COMMAND_RE = re.compile(r"^\s*#\s*([a-zA-Z]+)\s*(.*)$", re.DOTALL)
 
 
 class WhatsappCommand(models.AbstractModel):
-    _name = "whatsapp.command"
+    _name = "ibq.whatsapp.command"
     _description = "WhatsApp Agent Command"
 
     # ------------------------------------------------------------------
@@ -67,7 +67,7 @@ class WhatsappCommand(models.AbstractModel):
     # ------------------------------------------------------------------
     @api.model
     def _me(self):
-        agent = self.env["whatsapp.agent"]._current()
+        agent = self.env["ibq.whatsapp.agent"]._current()
         if not agent:
             raise UserError(_("You are not on the WhatsApp roster."))
         return agent
@@ -82,7 +82,7 @@ class WhatsappCommand(models.AbstractModel):
         ref = (ref or "").strip().lstrip("#")
         if not ref:
             raise UserError(_("Which chat? Give a ticket number, e.g. #take 1042."))
-        conversations = self.env["whatsapp.conversation"]
+        conversations = self.env["ibq.whatsapp.conversation"]
 
         if ref.isdigit():
             found = conversations.search([("ticket_id", "=", int(ref))], limit=1)
@@ -104,7 +104,7 @@ class WhatsappCommand(models.AbstractModel):
         needle = (text or "").strip()
         if not needle:
             raise UserError(_("Assign to whom? e.g. #assign 1042 sue"))
-        agents = self.env["whatsapp.agent"].sudo().search([])
+        agents = self.env["ibq.whatsapp.agent"].sudo().search([])
 
         number = normalize_number(needle)
         if number:
@@ -167,7 +167,7 @@ class WhatsappCommand(models.AbstractModel):
         return _("You are now *%s*.") % wanted
 
     def _cmd_team(self, rest):
-        agents = self.env["whatsapp.agent"].sudo().search([], order="role, id")
+        agents = self.env["ibq.whatsapp.agent"].sudo().search([], order="role, id")
         if not agents:
             return _("Nobody is on the roster.")
         lines = [_("*On shift*")]
@@ -179,7 +179,7 @@ class WhatsappCommand(models.AbstractModel):
         return "\n".join(lines)
 
     def _cmd_queue(self, rest):
-        conversations = self.env["whatsapp.conversation"].search(
+        conversations = self.env["ibq.whatsapp.conversation"].search(
             [("state", "=", "agent"), ("needs_reply", "=", True)],
             order="priority desc, last_message_date asc", limit=10,
         )
@@ -194,7 +194,7 @@ class WhatsappCommand(models.AbstractModel):
         return "\n".join(lines)
 
     def _cmd_mine(self, rest):
-        conversations = self.env["whatsapp.conversation"].search(
+        conversations = self.env["ibq.whatsapp.conversation"].search(
             [("user_id", "=", self.env.uid), ("state", "!=", "closed")],
             order="needs_reply desc, last_message_date asc", limit=10,
         )
@@ -250,13 +250,13 @@ class WhatsappCommand(models.AbstractModel):
             raise UserError(_("Use: #tag 1042 billing"))
         conversation = self._resolve_conversation(parts[0])
         needle = parts[1].strip().lower()
-        tag = self.env["whatsapp.tag"].search(
+        tag = self.env["ibq.whatsapp.tag"].search(
             [("name", "=ilike", needle)], limit=1
-        ) or self.env["whatsapp.tag"].search(
+        ) or self.env["ibq.whatsapp.tag"].search(
             [("name", "ilike", needle)], limit=1
         )
         if not tag:
-            names = ", ".join(self.env["whatsapp.tag"].search([]).mapped("name"))
+            names = ", ".join(self.env["ibq.whatsapp.tag"].search([]).mapped("name"))
             raise UserError(_("No tag called '%(needle)s'. Available: %(names)s",
                               needle=parts[1], names=names or _("none")))
         conversation.tag_ids = [(4, tag.id)]

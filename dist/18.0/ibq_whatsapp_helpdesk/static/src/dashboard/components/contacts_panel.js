@@ -47,14 +47,14 @@ export class ContactsPanel extends Component {
     async load() {
         this.state.loading = true;
         try {
-            const result = await this.orm.call("whatsapp.dashboard", "get_contacts", [], {
+            const result = await this.orm.call("ibq.whatsapp.dashboard", "get_contacts", [], {
                 search: this.state.search || null,
             });
             this.state.contacts = result.contacts;
             this.state.total = result.total;
             if (this.props.canBlock) {
                 this.state.blocklist = await this.orm.call(
-                    "whatsapp.dashboard", "get_blocklist", []
+                    "ibq.whatsapp.dashboard", "get_blocklist", []
                 );
             }
         } finally {
@@ -100,7 +100,7 @@ export class ContactsPanel extends Component {
         const contact = this.state.blocking;
         try {
             this.state.blocklist = await this.orm.call(
-                "whatsapp.dashboard", "block_number", [contact.number], {
+                "ibq.whatsapp.dashboard", "block_number", [contact.number], {
                     reason: this.state.blockReason,
                     note: this.state.blockNote || null,
                 }
@@ -123,7 +123,7 @@ export class ContactsPanel extends Component {
     async unblock(entry) {
         try {
             this.state.blocklist = await this.orm.call(
-                "whatsapp.dashboard", "unblock_number", [entry.id]
+                "ibq.whatsapp.dashboard", "unblock_number", [entry.id]
             );
             await this.load();
         } catch (error) {

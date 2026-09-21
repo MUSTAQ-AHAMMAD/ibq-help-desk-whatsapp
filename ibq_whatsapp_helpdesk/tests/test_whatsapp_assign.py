@@ -30,7 +30,7 @@ class TestWhatsappAssign(TransactionCase):
         super().setUpClass()
         cls.team = cls.env["helpdesk.team"].create({"name": "Assign Team"})
         cls.other_team = cls.env["helpdesk.team"].create({"name": "Other Team"})
-        cls.account = cls.env["whatsapp.account"].create({
+        cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Assign sender",
             "account_sid": "AC" + "3" * 32,
             "auth_token": "token",
@@ -38,13 +38,13 @@ class TestWhatsappAssign(TransactionCase):
             "team_id": cls.team.id,
             "verify_signature": False,
         })
-        cls.env["whatsapp.tag"].create({"name": "Billing"})
+        cls.env["ibq.whatsapp.tag"].create({"name": "Billing"})
 
         cls.sue_user = cls._make_user("sue_a", "Sue Supervisor")
         cls.alex_user = cls._make_user("alex_a", "Alex Agent")
         cls.nadia_user = cls._make_user("nadia_a", "Nadia Agent")
 
-        Agent = cls.env["whatsapp.agent"]
+        Agent = cls.env["ibq.whatsapp.agent"]
         cls.sue = Agent.create({
             "user_id": cls.sue_user.id, "role": "supervisor",
             "phone": "+971500000001", "status": "available",
@@ -73,7 +73,7 @@ class TestWhatsappAssign(TransactionCase):
     # Helpers
     # ------------------------------------------------------------------
     def _chat(self, number="+971559000001", **values):
-        conversation = self.env["whatsapp.conversation"]._get_or_create(
+        conversation = self.env["ibq.whatsapp.conversation"]._get_or_create(
             self.account, number
         )
         ticket = self.env["helpdesk.ticket"].create({
@@ -201,9 +201,9 @@ class TestWhatsappAssign(TransactionCase):
     # Commands by text
     # ==================================================================
     def test_a_command_never_becomes_a_conversation(self):
-        before = self.env["whatsapp.conversation"].search_count([])
+        before = self.env["ibq.whatsapp.conversation"].search_count([])
         self._text("+971500000002", "#help")
-        self.assertEqual(self.env["whatsapp.conversation"].search_count([]), before,
+        self.assertEqual(self.env["ibq.whatsapp.conversation"].search_count([]), before,
                          "an agent texting a command must not enter the queue")
         self.assertIn("#assign", self._last_reply())
 
@@ -242,7 +242,7 @@ class TestWhatsappAssign(TransactionCase):
         self.assertIn("does not allow", self._last_reply())
 
     def test_ambiguous_agent_name_asks_for_precision(self):
-        self.env["whatsapp.agent"].create({
+        self.env["ibq.whatsapp.agent"].create({
             "user_id": self._make_user("alex_b", "Alexandra Other").id,
             "role": "agent",
         })
@@ -309,21 +309,21 @@ class TestWhatsappAssign(TransactionCase):
 
     def test_a_non_command_from_an_agent_is_a_normal_chat(self):
         """An agent may also be a customer; only '#' means a command."""
-        before = self.env["whatsapp.conversation"].search_count([])
+        before = self.env["ibq.whatsapp.conversation"].search_count([])
         self._text("+971500000002", "I need help with my own order")
-        self.assertEqual(self.env["whatsapp.conversation"].search_count([]),
+        self.assertEqual(self.env["ibq.whatsapp.conversation"].search_count([]),
                          before + 1)
 
     def test_commands_can_be_switched_off_per_account(self):
         self.account.allow_agent_commands = False
-        before = self.env["whatsapp.conversation"].search_count([])
+        before = self.env["ibq.whatsapp.conversation"].search_count([])
         self._text("+971500000002", "#help")
-        self.assertEqual(self.env["whatsapp.conversation"].search_count([]),
+        self.assertEqual(self.env["ibq.whatsapp.conversation"].search_count([]),
                          before + 1, "with commands off it is just a message")
 
     def test_a_stranger_texting_a_hash_is_not_a_command(self):
-        before = self.env["whatsapp.conversation"].search_count([])
+        before = self.env["ibq.whatsapp.conversation"].search_count([])
         self._text("+971559999999", "#take 1")
-        self.assertEqual(self.env["whatsapp.conversation"].search_count([]),
+        self.assertEqual(self.env["ibq.whatsapp.conversation"].search_count([]),
                          before + 1,
                          "only numbers on the roster can run commands")

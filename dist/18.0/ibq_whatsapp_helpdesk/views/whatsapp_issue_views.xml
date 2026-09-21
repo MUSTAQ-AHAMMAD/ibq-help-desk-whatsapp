@@ -6,7 +6,7 @@
 
     <record id="view_whatsapp_issue_tree" model="ir.ui.view">
         <field name="name">whatsapp.issue.tree</field>
-        <field name="model">whatsapp.issue</field>
+        <field name="model">ibq.whatsapp.issue</field>
         <field name="arch" type="xml">
             <list string="Issues" multi_edit="1"
                   decoration-bf="kind == 'repeated'"
@@ -31,7 +31,7 @@
 
     <record id="view_whatsapp_issue_form" model="ir.ui.view">
         <field name="name">whatsapp.issue.form</field>
-        <field name="model">whatsapp.issue</field>
+        <field name="model">ibq.whatsapp.issue</field>
         <field name="arch" type="xml">
             <form string="Issue">
                 <header>
@@ -94,7 +94,7 @@
 
     <record id="view_whatsapp_issue_search" model="ir.ui.view">
         <field name="name">whatsapp.issue.search</field>
-        <field name="model">whatsapp.issue</field>
+        <field name="model">ibq.whatsapp.issue</field>
         <field name="arch" type="xml">
             <search string="Issues">
                 <field name="name"/>
@@ -128,7 +128,7 @@
 
     <record id="view_whatsapp_issue_graph" model="ir.ui.view">
         <field name="name">whatsapp.issue.graph</field>
-        <field name="model">whatsapp.issue</field>
+        <field name="model">ibq.whatsapp.issue</field>
         <field name="arch" type="xml">
             <graph string="Issues" type="bar" sample="1">
                 <field name="name"/>
@@ -139,7 +139,7 @@
 
     <record id="view_whatsapp_issue_pivot" model="ir.ui.view">
         <field name="name">whatsapp.issue.pivot</field>
-        <field name="model">whatsapp.issue</field>
+        <field name="model">ibq.whatsapp.issue</field>
         <field name="arch" type="xml">
             <pivot string="Issues" sample="1">
                 <field name="team_id" type="row"/>
@@ -152,8 +152,8 @@
 
     <record id="action_whatsapp_issue_merge" model="ir.actions.server">
         <field name="name">Merge issues</field>
-        <field name="model_id" ref="model_whatsapp_issue"/>
-        <field name="binding_model_id" ref="model_whatsapp_issue"/>
+        <field name="model_id" ref="model_ibq_whatsapp_issue"/>
+        <field name="binding_model_id" ref="model_ibq_whatsapp_issue"/>
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">action = records.action_merge()</field>
@@ -161,8 +161,8 @@
 
     <record id="action_whatsapp_issue_reclassify" model="ir.actions.server">
         <field name="name">Reclassify all chats</field>
-        <field name="model_id" ref="model_whatsapp_issue"/>
-        <field name="binding_model_id" ref="model_whatsapp_issue"/>
+        <field name="model_id" ref="model_ibq_whatsapp_issue"/>
+        <field name="binding_model_id" ref="model_ibq_whatsapp_issue"/>
         <field name="binding_view_types">list</field>
         <field name="state">code</field>
         <field name="code">action = model.action_reclassify_all()</field>
@@ -170,7 +170,7 @@
 
     <record id="action_whatsapp_issue" model="ir.actions.act_window">
         <field name="name">Issues</field>
-        <field name="res_model">whatsapp.issue</field>
+        <field name="res_model">ibq.whatsapp.issue</field>
         <field name="view_mode">list,form,graph,pivot</field>
         <field name="search_view_id" ref="view_whatsapp_issue_search"/>
         <field name="context">{'search_default_repeated': 1}</field>
@@ -191,7 +191,7 @@
 
     <record id="action_whatsapp_issue_all" model="ir.actions.act_window">
         <field name="name">All Issues</field>
-        <field name="res_model">whatsapp.issue</field>
+        <field name="res_model">ibq.whatsapp.issue</field>
         <field name="view_mode">list,form,graph,pivot</field>
         <field name="search_view_id" ref="view_whatsapp_issue_search"/>
     </record>

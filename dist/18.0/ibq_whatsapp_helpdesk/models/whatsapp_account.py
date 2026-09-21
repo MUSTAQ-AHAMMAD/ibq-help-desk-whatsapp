@@ -40,7 +40,7 @@ def normalize_number(number):
 
 
 class WhatsappAccount(models.Model):
-    _name = "whatsapp.account"
+    _name = "ibq.whatsapp.account"
     _description = "WhatsApp Account (Twilio)"
     _order = "sequence, id"
 
@@ -94,7 +94,7 @@ class WhatsappAccount(models.Model):
         help="Tickets created from this number land in this team.",
     )
     bot_flow_id = fields.Many2one(
-        "whatsapp.bot.flow", string="Bot Flow",
+        "ibq.whatsapp.bot.flow", string="Bot Flow",
         help="Scripted conversation played to inbound chats. Leave empty to hand "
              "every chat straight to an agent.",
     )
@@ -141,7 +141,7 @@ class WhatsappAccount(models.Model):
     # Compute / constraints
     # ------------------------------------------------------------------
     def _compute_conversation_count(self):
-        groups = self.env["whatsapp.conversation"]._read_group(
+        groups = self.env["ibq.whatsapp.conversation"]._read_group(
             [("account_id", "in", self.ids)], ["account_id"], ["__count"]
         )
         mapped = {account.id: count for account, count in groups}
@@ -337,14 +337,14 @@ class WhatsappAccount(models.Model):
             if handled is not None:
                 return handled
 
-        blocked = self.env["whatsapp.blocklist"]._entry_for(params.get("From"))
+        blocked = self.env["ibq.whatsapp.blocklist"]._entry_for(params.get("From"))
         if blocked:
             # Drop it without a word: any reply confirms the number is live.
             blocked._register_hit()
             _logger.info("Dropped inbound WhatsApp from blocked number %s", blocked.number)
-            return self.env["whatsapp.message"]
+            return self.env["ibq.whatsapp.message"]
 
-        conversation = self.env["whatsapp.conversation"].sudo()._get_or_create(
+        conversation = self.env["ibq.whatsapp.conversation"].sudo()._get_or_create(
             self, params.get("From"), params.get("ProfileName")
         )
 
@@ -358,7 +358,7 @@ class WhatsappAccount(models.Model):
             if params.get("MediaUrl%s" % index)
         ]
 
-        message = self.env["whatsapp.message"].sudo().create({
+        message = self.env["ibq.whatsapp.message"].sudo().create({
             "conversation_id": conversation.id,
             "account_id": self.id,
             "direction": "inbound",
@@ -388,15 +388,15 @@ class WhatsappAccount(models.Model):
         """
         self.ensure_one()
         sender = params.get("From")
-        agent = self.env["whatsapp.agent"]._find_by_phone(sender)
+        agent = self.env["ibq.whatsapp.agent"]._find_by_phone(sender)
         if not agent:
             return None
-        if not self.env["whatsapp.command"].looks_like_command(body):
+        if not self.env["ibq.whatsapp.command"].looks_like_command(body):
             # An agent may also be a customer. Anything that is not a command
             # falls through to the normal conversation path.
             return None
 
-        inbound = self.env["whatsapp.message"].sudo().create({
+        inbound = self.env["ibq.whatsapp.message"].sudo().create({
             "account_id": self.id,
             "direction": "inbound",
             "number": sender,
@@ -409,10 +409,10 @@ class WhatsappAccount(models.Model):
         })
 
         # Run as the agent, so their role decides what the command may do.
-        reply = self.env["whatsapp.command"].with_user(agent.user_id).execute(body)
+        reply = self.env["ibq.whatsapp.command"].with_user(agent.user_id).execute(body)
         _logger.info("WhatsApp command from %s: %s", agent.user_id.name, body)
 
-        self.env["whatsapp.message"].sudo().create({
+        self.env["ibq.whatsapp.message"].sudo().create({
             "account_id": self.id,
             "direction": "outbound",
             "number": sender,

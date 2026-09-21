@@ -76,7 +76,7 @@ export class WhatsappDashboard extends Component {
         ];
 
         onWillStart(async () => {
-            this.state.boot = await this.orm.call("whatsapp.dashboard", "get_bootstrap", []);
+            this.state.boot = await this.orm.call("ibq.whatsapp.dashboard", "get_bootstrap", []);
             await this.loadStats();
             this.state.ready = true;
             this.busService.subscribe("ibq_whatsapp/dashboard", (payload) =>
@@ -116,7 +116,7 @@ export class WhatsappDashboard extends Component {
         }
         try {
             this.state.data = await this.orm.call(
-                "whatsapp.dashboard", "get_dashboard_data", [], {
+                "ibq.whatsapp.dashboard", "get_dashboard_data", [], {
                     filters: { ...this.state.filters },
                 }
             );
@@ -134,7 +134,7 @@ export class WhatsappDashboard extends Component {
     }
 
     async reloadBoot() {
-        this.state.boot = await this.orm.call("whatsapp.dashboard", "get_bootstrap", []);
+        this.state.boot = await this.orm.call("ibq.whatsapp.dashboard", "get_bootstrap", []);
     }
 
     onServerEvent(payload) {
@@ -168,7 +168,7 @@ export class WhatsappDashboard extends Component {
 
     async setMyStatus(status) {
         try {
-            const me = await this.orm.call("whatsapp.dashboard", "set_my_status", [status]);
+            const me = await this.orm.call("ibq.whatsapp.dashboard", "set_my_status", [status]);
             this.state.boot.me = me;
             await this.loadStats(true);
         } catch (error) {

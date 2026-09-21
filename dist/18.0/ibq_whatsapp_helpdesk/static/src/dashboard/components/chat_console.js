@@ -105,7 +105,7 @@ export class ChatConsole extends Component {
             this.state.loadingQueue = true;
         }
         try {
-            const result = await this.orm.call("whatsapp.dashboard", "get_conversations", [], {
+            const result = await this.orm.call("ibq.whatsapp.dashboard", "get_conversations", [], {
                 scope: this.state.scope,
                 search: this.state.search || null,
                 filters: { ...this.props.filters },
@@ -121,7 +121,7 @@ export class ChatConsole extends Component {
         this.state.loadingThread = true;
         try {
             this.state.active = await this.orm.call(
-                "whatsapp.dashboard", "get_conversation", [conversationId]
+                "ibq.whatsapp.dashboard", "get_conversation", [conversationId]
             );
             this.state.draft = "";
             this.state.note = "";
@@ -136,7 +136,7 @@ export class ChatConsole extends Component {
     async refreshThread() {
         if (this.state.active) {
             this.state.active = await this.orm.call(
-                "whatsapp.dashboard", "get_conversation", [this.state.active.id]
+                "ibq.whatsapp.dashboard", "get_conversation", [this.state.active.id]
             );
         }
     }
@@ -192,7 +192,7 @@ export class ChatConsole extends Component {
 
     async loadCanned() {
         this.state.canned = await this.orm.call(
-            "whatsapp.dashboard", "get_canned_responses", [], {
+            "ibq.whatsapp.dashboard", "get_canned_responses", [], {
                 search: this.state.cannedSearch || null,
                 conversation_id: this.state.active?.id || null,
             }
@@ -221,7 +221,7 @@ export class ChatConsole extends Component {
         }
         this.state.sending = true;
         try {
-            this.state.active = await this.orm.call("whatsapp.dashboard", "send_message", [
+            this.state.active = await this.orm.call("ibq.whatsapp.dashboard", "send_message", [
                 this.state.active.id, body,
             ], { canned_id: this.lastCannedId || null });
             this.state.draft = "";
@@ -244,7 +244,7 @@ export class ChatConsole extends Component {
             return;
         }
         try {
-            this.state.active = await this.orm.call("whatsapp.dashboard", "add_note", [
+            this.state.active = await this.orm.call("ibq.whatsapp.dashboard", "add_note", [
                 this.state.active.id, body,
             ]);
             this.state.note = "";
@@ -266,7 +266,7 @@ export class ChatConsole extends Component {
         }
         try {
             this.state.active = await this.orm.call(
-                "whatsapp.dashboard", "set_conversation_tags",
+                "ibq.whatsapp.dashboard", "set_conversation_tags",
                 [this.state.active.id, current]
             );
             await this.loadQueue(true);
@@ -281,7 +281,7 @@ export class ChatConsole extends Component {
 
     async setPriority(ev) {
         try {
-            await this.orm.call("whatsapp.dashboard", "set_conversation_priority",
+            await this.orm.call("ibq.whatsapp.dashboard", "set_conversation_priority",
                                 [this.state.active.id, ev.target.value]);
             await Promise.all([this.refreshThread(), this.loadQueue(true)]);
         } catch (error) {
@@ -297,7 +297,7 @@ export class ChatConsole extends Component {
             return;
         }
         try {
-            await this.orm.call("whatsapp.dashboard", "act_on_conversation",
+            await this.orm.call("ibq.whatsapp.dashboard", "act_on_conversation",
                                 [this.state.active.id, action]);
             await Promise.all([this.refreshThread(), this.loadQueue(true)]);
         } catch (error) {
@@ -308,7 +308,7 @@ export class ChatConsole extends Component {
     async assign(ev) {
         const userId = parseInt(ev.target.value, 10) || false;
         try {
-            await this.orm.call("whatsapp.dashboard", "assign_conversation",
+            await this.orm.call("ibq.whatsapp.dashboard", "assign_conversation",
                                 [this.state.active.id, userId]);
             await Promise.all([this.refreshThread(), this.loadQueue(true)]);
         } catch (error) {
@@ -325,7 +325,7 @@ export class ChatConsole extends Component {
     async confirmTransfer() {
         try {
             this.state.active = await this.orm.call(
-                "whatsapp.dashboard", "transfer_conversation",
+                "ibq.whatsapp.dashboard", "transfer_conversation",
                 [this.state.active.id], {
                     user_id: parseInt(this.state.transferUser, 10) || null,
                     team_id: parseInt(this.state.transferTeam, 10) || null,

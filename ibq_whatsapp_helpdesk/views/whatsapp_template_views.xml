@@ -3,7 +3,7 @@
 
     <record id="view_whatsapp_template_tree" model="ir.ui.view">
         <field name="name">whatsapp.template.tree</field>
-        <field name="model">whatsapp.template</field>
+        <field name="model">ibq.whatsapp.template</field>
         <field name="arch" type="xml">
             <tree string="WhatsApp Templates">
                 <field name="name"/>
@@ -21,7 +21,7 @@
 
     <record id="view_whatsapp_template_form" model="ir.ui.view">
         <field name="name">whatsapp.template.form</field>
-        <field name="model">whatsapp.template</field>
+        <field name="model">ibq.whatsapp.template</field>
         <field name="arch" type="xml">
             <form string="WhatsApp Template">
                 <header>
@@ -79,7 +79,7 @@
 
     <record id="action_whatsapp_template" model="ir.actions.act_window">
         <field name="name">WhatsApp Templates</field>
-        <field name="res_model">whatsapp.template</field>
+        <field name="res_model">ibq.whatsapp.template</field>
         <field name="view_mode">tree,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Mirror your approved templates</p>

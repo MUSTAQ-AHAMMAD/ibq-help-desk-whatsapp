@@ -52,21 +52,21 @@
              ============================================================ -->
         <record id="rule_whatsapp_account_company" model="ir.rule">
             <field name="name">WhatsApp Account: multi-company</field>
-            <field name="model_id" ref="model_whatsapp_account"/>
+            <field name="model_id" ref="model_ibq_whatsapp_account"/>
             <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
             <field name="global" eval="True"/>
         </record>
 
         <record id="rule_whatsapp_conversation_company" model="ir.rule">
             <field name="name">WhatsApp Conversation: multi-company</field>
-            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="model_id" ref="model_ibq_whatsapp_conversation"/>
             <field name="domain_force">['|', ('account_id.company_id', '=', False), ('account_id.company_id', 'in', company_ids)]</field>
             <field name="global" eval="True"/>
         </record>
 
         <record id="rule_whatsapp_message_company" model="ir.rule">
             <field name="name">WhatsApp Message: multi-company</field>
-            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="model_id" ref="model_ibq_whatsapp_message"/>
             <field name="domain_force">['|', ('account_id.company_id', '=', False), ('account_id.company_id', 'in', company_ids)]</field>
             <field name="global" eval="True"/>
         </record>
@@ -80,28 +80,28 @@
              ============================================================ -->
         <record id="rule_whatsapp_conversation_agent" model="ir.rule">
             <field name="name">WhatsApp Conversation: own and unassigned chats</field>
-            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="model_id" ref="model_ibq_whatsapp_conversation"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
             <field name="domain_force">['|', ('user_id', '=', user.id), ('user_id', '=', False)]</field>
         </record>
 
         <record id="rule_whatsapp_conversation_supervisor" model="ir.rule">
             <field name="name">WhatsApp Conversation: all</field>
-            <field name="model_id" ref="model_whatsapp_conversation"/>
+            <field name="model_id" ref="model_ibq_whatsapp_conversation"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
             <field name="domain_force">[(1, '=', 1)]</field>
         </record>
 
         <record id="rule_whatsapp_message_agent" model="ir.rule">
             <field name="name">WhatsApp Message: own and unassigned chats</field>
-            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="model_id" ref="model_ibq_whatsapp_message"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
             <field name="domain_force">['|', ('conversation_id', '=', False), '|', ('conversation_id.user_id', '=', user.id), ('conversation_id.user_id', '=', False)]</field>
         </record>
 
         <record id="rule_whatsapp_message_supervisor" model="ir.rule">
             <field name="name">WhatsApp Message: all</field>
-            <field name="model_id" ref="model_whatsapp_message"/>
+            <field name="model_id" ref="model_ibq_whatsapp_message"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
             <field name="domain_force">[(1, '=', 1)]</field>
         </record>
@@ -110,7 +110,7 @@
              library but can only edit the ones they own. -->
         <record id="rule_whatsapp_canned_read" model="ir.rule">
             <field name="name">WhatsApp Canned Response: read shared or mine</field>
-            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="model_id" ref="model_ibq_whatsapp_canned_response"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
             <field name="domain_force">['|', ('owner_id', '=', False), ('owner_id', '=', user.id)]</field>
             <field name="perm_read" eval="True"/>
@@ -121,7 +121,7 @@
 
         <record id="rule_whatsapp_canned_write_own" model="ir.rule">
             <field name="name">WhatsApp Canned Response: edit only mine</field>
-            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="model_id" ref="model_ibq_whatsapp_canned_response"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_user'))]"/>
             <field name="domain_force">[('owner_id', '=', user.id)]</field>
             <field name="perm_read" eval="False"/>
@@ -132,7 +132,7 @@
 
         <record id="rule_whatsapp_canned_supervisor" model="ir.rule">
             <field name="name">WhatsApp Canned Response: manage the shared library</field>
-            <field name="model_id" ref="model_whatsapp_canned_response"/>
+            <field name="model_id" ref="model_ibq_whatsapp_canned_response"/>
             <field name="groups" eval="[(4, ref('group_whatsapp_supervisor'))]"/>
             <field name="domain_force">[(1, '=', 1)]</field>
         </record>

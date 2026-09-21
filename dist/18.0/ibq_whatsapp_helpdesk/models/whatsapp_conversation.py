@@ -24,7 +24,7 @@ class WhatsappConversation(models.Model):
     helpdesk ticket came out of the chat.
     """
 
-    _name = "whatsapp.conversation"
+    _name = "ibq.whatsapp.conversation"
     _description = "WhatsApp Conversation"
     _inherit = ["mail.thread"]
     _order = "last_message_date desc, id desc"
@@ -32,7 +32,7 @@ class WhatsappConversation(models.Model):
     name = fields.Char(compute="_compute_name", store=True)
     active = fields.Boolean(default=True)
     account_id = fields.Many2one(
-        "whatsapp.account", required=True, index=True, ondelete="restrict"
+        "ibq.whatsapp.account", required=True, index=True, ondelete="restrict"
     )
     number = fields.Char(required=True, index=True, tracking=True)
     profile_name = fields.Char(
@@ -55,7 +55,7 @@ class WhatsappConversation(models.Model):
         default="bot", required=True, index=True, tracking=True,
     )
     whatsapp_message_ids = fields.One2many(
-        "whatsapp.message", "conversation_id", string="WhatsApp Messages"
+        "ibq.whatsapp.message", "conversation_id", string="WhatsApp Messages"
     )
     # Deliberately two compute methods, not one: mixing a stored and a
     # non-stored field in the same group means reading the counter would
@@ -70,10 +70,10 @@ class WhatsappConversation(models.Model):
     )
 
     # -- bot state ---------------------------------------------------------
-    bot_flow_id = fields.Many2one("whatsapp.bot.flow", string="Bot Flow")
-    bot_step_id = fields.Many2one("whatsapp.bot.step", string="Current Step")
+    bot_flow_id = fields.Many2one("ibq.whatsapp.bot.flow", string="Bot Flow")
+    bot_step_id = fields.Many2one("ibq.whatsapp.bot.step", string="Current Step")
     bot_pending_step_id = fields.Many2one(
-        "whatsapp.bot.step", string="Awaiting Answer For",
+        "ibq.whatsapp.bot.step", string="Awaiting Answer For",
         help="Set while the bot waits for a reply to a question or menu step.",
     )
     answers = fields.Text(
@@ -82,9 +82,9 @@ class WhatsappConversation(models.Model):
     invalid_count = fields.Integer(default=0)
 
     # -- triage ------------------------------------------------------------
-    tag_ids = fields.Many2many("whatsapp.tag", string="Tags")
+    tag_ids = fields.Many2many("ibq.whatsapp.tag", string="Tags")
     issue_id = fields.Many2one(
-        "whatsapp.issue", string="Issue", index=True, ondelete="set null",
+        "ibq.whatsapp.issue", string="Issue", index=True, ondelete="set null",
         help="What this chat was about, grouped with every other chat about "
              "the same thing.",
     )
@@ -95,7 +95,7 @@ class WhatsappConversation(models.Model):
 
     # -- satisfaction ------------------------------------------------------
     rating_id = fields.Many2one(
-        "whatsapp.rating", string="Rating", readonly=True, copy=False
+        "ibq.whatsapp.rating", string="Rating", readonly=True, copy=False
     )
     rating_score = fields.Integer(
         related="rating_id.score_value", store=True, string="Score"
@@ -219,7 +219,7 @@ class WhatsappConversation(models.Model):
                     "Add them to the roster first."
                 ) % user.name)
             if user != self.env.user:
-                self.env["whatsapp.agent"]._assert_right("reassign")
+                self.env["ibq.whatsapp.agent"]._assert_right("reassign")
 
         previous = self.user_id
         self.user_id = user.id if user else False
@@ -246,7 +246,7 @@ class WhatsappConversation(models.Model):
         self.ensure_one()
         if self.state != "agent" or not self.user_id or not self.in_session:
             return False
-        agent = self.env["whatsapp.agent"].sudo().search(
+        agent = self.env["ibq.whatsapp.agent"].sudo().search(
             [("user_id", "=", self.user_id.id)], limit=1
         )
         name = agent.display_alias or self.user_id.name
@@ -341,10 +341,10 @@ class WhatsappConversation(models.Model):
         """Queue a free-form text message and send it immediately."""
         self.ensure_one()
         if not (body or "").strip():
-            return self.env["whatsapp.message"]
+            return self.env["ibq.whatsapp.message"]
         if not force:
             self._check_session()
-        message = self.env["whatsapp.message"].create({
+        message = self.env["ibq.whatsapp.message"].create({
             "conversation_id": self.id,
             "account_id": self.account_id.id,
             "direction": "outbound",
@@ -372,16 +372,16 @@ class WhatsappConversation(models.Model):
         """Queue an approved template. Works outside the session window."""
         self.ensure_one()
         if isinstance(template, str):
-            template = self.env["whatsapp.template"]._get_by_code(
+            template = self.env["ibq.whatsapp.template"]._get_by_code(
                 template, self.account_id
             )
         if not template:
             _logger.info("No WhatsApp template found for conversation %s", self.id)
-            return self.env["whatsapp.message"]
+            return self.env["ibq.whatsapp.message"]
         body, content_variables = template.render(
             record if record is not None else (self.ticket_id or self), values
         )
-        message = self.env["whatsapp.message"].create({
+        message = self.env["ibq.whatsapp.message"].create({
             "conversation_id": self.id,
             "account_id": self.account_id.id,
             "direction": "outbound",
@@ -416,7 +416,7 @@ class WhatsappConversation(models.Model):
         # A pending satisfaction question owns the next reply: a bare "5" is a
         # score, not a request to reopen the chat.
         if self.awaiting_rating:
-            rating = self.env["whatsapp.rating"]._record_from_reply(self, text)
+            rating = self.env["ibq.whatsapp.rating"]._record_from_reply(self, text)
             if rating:
                 self.write({"rating_id": rating.id, "awaiting_rating": False})
                 self._notify_dashboard("rated")
@@ -669,7 +669,7 @@ class WhatsappConversation(models.Model):
         self.whatsapp_message_ids.sorted("id")._post_to_ticket()
         # The subject is settled by now, so this is the moment to work out
         # which issue the chat belongs to.
-        self.env["whatsapp.issue"]._match_or_create(self)
+        self.env["ibq.whatsapp.issue"]._match_or_create(self)
         return ticket
 
     def action_create_ticket(self):
@@ -698,7 +698,7 @@ class WhatsappConversation(models.Model):
             values["handoff_date"] = fields.Datetime.now()
         self.write(values)
         if not self.user_id:
-            agent = self.env["whatsapp.agent"]._route(self)
+            agent = self.env["ibq.whatsapp.agent"]._route(self)
             if agent:
                 # No announcement here: the hand-off message below already
                 # tells the customer a person is picking this up.
@@ -713,7 +713,7 @@ class WhatsappConversation(models.Model):
                 subtype_xmlid="mail.mt_note",
             )
         if announce:
-            template = self.env["whatsapp.template"]._get_by_code(
+            template = self.env["ibq.whatsapp.template"]._get_by_code(
                 "agent_handoff", self.account_id
             )
             if template:
@@ -755,7 +755,7 @@ class WhatsappConversation(models.Model):
             )
         self._ask_for_rating()
         if not self.issue_id:
-            self.env["whatsapp.issue"]._match_or_create(self)
+            self.env["ibq.whatsapp.issue"]._match_or_create(self)
         self._notify_dashboard("closed")
         return True
 
@@ -793,7 +793,7 @@ class WhatsappConversation(models.Model):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "res_model": "whatsapp.compose.message",
+            "res_model": "ibq.whatsapp.compose.message",
             "view_mode": "form",
             "target": "new",
             "context": {
@@ -814,7 +814,7 @@ class WhatsappConversation(models.Model):
         payload is deliberately thin: the client refetches what it needs.
         """
         self.ensure_one()
-        agents = self.env["whatsapp.agent"].sudo().search([])
+        agents = self.env["ibq.whatsapp.agent"].sudo().search([])
         partners = agents.user_id.partner_id
         if not partners:
             return

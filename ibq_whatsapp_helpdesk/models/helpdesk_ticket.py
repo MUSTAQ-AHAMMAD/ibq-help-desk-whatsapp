@@ -11,7 +11,7 @@ class HelpdeskTeam(models.Model):
     _inherit = "helpdesk.team"
 
     whatsapp_account_id = fields.Many2one(
-        "whatsapp.account", string="WhatsApp Account",
+        "ibq.whatsapp.account", string="WhatsApp Account",
         help="Account used when this team messages a customer.",
     )
     whatsapp_log_mode = fields.Selection(
@@ -37,7 +37,7 @@ class HelpdeskStage(models.Model):
     _inherit = "helpdesk.stage"
 
     whatsapp_template_id = fields.Many2one(
-        "whatsapp.template", string="WhatsApp Template",
+        "ibq.whatsapp.template", string="WhatsApp Template",
         help="Sent to the customer when a WhatsApp ticket reaches this stage.",
     )
     whatsapp_close_conversation = fields.Boolean(
@@ -50,11 +50,11 @@ class HelpdeskTicket(models.Model):
     _inherit = "helpdesk.ticket"
 
     whatsapp_conversation_id = fields.Many2one(
-        "whatsapp.conversation", string="WhatsApp Chat", copy=False, index=True
+        "ibq.whatsapp.conversation", string="WhatsApp Chat", copy=False, index=True
     )
     whatsapp_number = fields.Char("WhatsApp Number", copy=False)
     whatsapp_message_ids = fields.One2many(
-        "whatsapp.message", "ticket_id", string="WhatsApp Messages"
+        "ibq.whatsapp.message", "ticket_id", string="WhatsApp Messages"
     )
     whatsapp_message_count = fields.Integer(compute="_compute_whatsapp_state")
     whatsapp_transcript_synced = fields.Boolean(
@@ -156,11 +156,11 @@ class HelpdeskTicket(models.Model):
         account = (
             self.whatsapp_conversation_id.account_id
             or self.team_id.whatsapp_account_id
-            or self.env["whatsapp.account"]._get_default_account()
+            or self.env["ibq.whatsapp.account"]._get_default_account()
         )
         return {
             "type": "ir.actions.act_window",
-            "res_model": "whatsapp.compose.message",
+            "res_model": "ibq.whatsapp.compose.message",
             "view_mode": "form",
             "target": "new",
             "name": _("Send WhatsApp Message"),
@@ -199,7 +199,7 @@ class HelpdeskTicket(models.Model):
         self.ensure_one()
         return {
             "type": "ir.actions.act_window",
-            "res_model": "whatsapp.conversation",
+            "res_model": "ibq.whatsapp.conversation",
             "res_id": self.whatsapp_conversation_id.id,
             "view_mode": "form",
         }

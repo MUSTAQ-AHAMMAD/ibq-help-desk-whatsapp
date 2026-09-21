@@ -49,7 +49,7 @@ class TwilioWebhookController(http.Controller):
         if env["ir.config_parameter"].sudo().get_param("ibq_whatsapp.log_webhooks") == "True":
             _logger.info("Twilio inbound payload: %s", params)
 
-        account = env["whatsapp.account"].sudo()._find_for_inbound(
+        account = env["ibq.whatsapp.account"].sudo()._find_for_inbound(
             params.get("To"), params.get("AccountSid")
         )
         if not account:
@@ -60,7 +60,7 @@ class TwilioWebhookController(http.Controller):
             return self._reject("invalid X-Twilio-Signature", {"To": params.get("To")})
 
         message_sid = params.get("MessageSid") or params.get("SmsMessageSid")
-        if message_sid and env["whatsapp.message"].sudo().search_count(
+        if message_sid and env["ibq.whatsapp.message"].sudo().search_count(
             [("twilio_sid", "=", message_sid)]
         ):
             # Twilio retries on timeout; do not replay the bot for a duplicate.
@@ -83,7 +83,7 @@ class TwilioWebhookController(http.Controller):
     def status(self, **post):
         params = self._form_params()
         env = request.env
-        account = env["whatsapp.account"].sudo()._find_for_inbound(
+        account = env["ibq.whatsapp.account"].sudo()._find_for_inbound(
             params.get("From"), params.get("AccountSid")
         )
         if account and not account.validate_signature(
@@ -92,7 +92,7 @@ class TwilioWebhookController(http.Controller):
         ):
             return self._reject("invalid signature on status callback")
         try:
-            env["whatsapp.message"].sudo()._apply_status_callback(params)
+            env["ibq.whatsapp.message"].sudo()._apply_status_callback(params)
         except Exception:  # noqa: BLE001
             _logger.exception("Failed to apply Twilio status callback: %s", params)
             request.env.cr.rollback()
@@ -103,7 +103,7 @@ class TwilioWebhookController(http.Controller):
     # ------------------------------------------------------------------
     @http.route("/whatsapp/twilio/health", type="http", auth="public", methods=["GET"])
     def health(self, **kwargs):
-        count = request.env["whatsapp.account"].sudo().search_count([])
+        count = request.env["ibq.whatsapp.account"].sudo().search_count([])
         return request.make_response(
             "ok: %s WhatsApp account(s) configured" % count,
             headers=[("Content-Type", "text/plain")],

@@ -44,7 +44,7 @@ The team
 * Customer satisfaction collected automatically when a handled chat closes.
 * A blocklist that drops inbound messages before any record is created.
 """,
-    "version": "18.0.3.1.0",
+    "version": "18.0.4.0.0",
     "category": "Services/Helpdesk",
     "author": "IBQ",
     "website": "https://github.com/ibq/ibq-help-desk-whatsapp",

@@ -10,7 +10,7 @@
         <!-- ============================================================
              Bot flow
              ============================================================ -->
-        <record id="bot_flow_support" model="whatsapp.bot.flow">
+        <record id="bot_flow_support" model="ibq.whatsapp.bot.flow">
             <field name="name">IBQ Support (default)</field>
             <field name="greeting">Hello {name}! You have reached IBQ Support.</field>
             <field name="fallback_message">Sorry, I did not catch that. Please reply with one of the numbers above, or type AGENT to reach a person.</field>
@@ -22,7 +22,7 @@
 
         <!-- Steps are created first without their links, then wired up below,
              because XML ids cannot be referenced before they exist. -->
-        <record id="bot_step_welcome" model="whatsapp.bot.step">
+        <record id="bot_step_welcome" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Main menu</field>
             <field name="code">welcome</field>
@@ -31,7 +31,7 @@
             <field name="body">What can we help you with today?</field>
         </record>
 
-        <record id="bot_step_subject" model="whatsapp.bot.step">
+        <record id="bot_step_subject" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Ask for a summary</field>
             <field name="code">subject</field>
@@ -42,7 +42,7 @@
             <field name="answer_format">text</field>
         </record>
 
-        <record id="bot_step_details" model="whatsapp.bot.step">
+        <record id="bot_step_details" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Ask for details</field>
             <field name="code">details</field>
@@ -53,7 +53,7 @@
             <field name="answer_format">text</field>
         </record>
 
-        <record id="bot_step_create_ticket" model="whatsapp.bot.step">
+        <record id="bot_step_create_ticket" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Open the ticket</field>
             <field name="code">create_ticket</field>
@@ -64,7 +64,7 @@
             <field name="ticket_priority">1</field>
         </record>
 
-        <record id="bot_step_track" model="whatsapp.bot.step">
+        <record id="bot_step_track" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Track an existing ticket</field>
             <field name="code">track</field>
@@ -76,7 +76,7 @@
             <field name="answer_error">A ticket number is digits only, for example 1042.</field>
         </record>
 
-        <record id="bot_step_agent" model="whatsapp.bot.step">
+        <record id="bot_step_agent" model="ibq.whatsapp.bot.step">
             <field name="flow_id" ref="bot_flow_support"/>
             <field name="name">Hand over to an agent</field>
             <field name="code">agent</field>
@@ -86,23 +86,23 @@
         </record>
 
         <!-- Wiring -->
-        <record id="bot_step_subject" model="whatsapp.bot.step">
+        <record id="bot_step_subject" model="ibq.whatsapp.bot.step">
             <field name="next_step_id" ref="bot_step_details"/>
         </record>
-        <record id="bot_step_details" model="whatsapp.bot.step">
+        <record id="bot_step_details" model="ibq.whatsapp.bot.step">
             <field name="next_step_id" ref="bot_step_create_ticket"/>
         </record>
-        <record id="bot_step_create_ticket" model="whatsapp.bot.step">
+        <record id="bot_step_create_ticket" model="ibq.whatsapp.bot.step">
             <field name="next_step_id" ref="bot_step_agent"/>
         </record>
-        <record id="bot_step_track" model="whatsapp.bot.step">
+        <record id="bot_step_track" model="ibq.whatsapp.bot.step">
             <field name="next_step_id" ref="bot_step_agent"/>
         </record>
-        <record id="bot_flow_support" model="whatsapp.bot.flow">
+        <record id="bot_flow_support" model="ibq.whatsapp.bot.flow">
             <field name="start_step_id" ref="bot_step_welcome"/>
         </record>
 
-        <record id="bot_option_technical" model="whatsapp.bot.option">
+        <record id="bot_option_technical" model="ibq.whatsapp.bot.option">
             <field name="step_id" ref="bot_step_welcome"/>
             <field name="sequence">10</field>
             <field name="key">1</field>
@@ -111,7 +111,7 @@
             <field name="answer_key">category</field>
             <field name="next_step_id" ref="bot_step_subject"/>
         </record>
-        <record id="bot_option_billing" model="whatsapp.bot.option">
+        <record id="bot_option_billing" model="ibq.whatsapp.bot.option">
             <field name="step_id" ref="bot_step_welcome"/>
             <field name="sequence">20</field>
             <field name="key">2</field>
@@ -120,7 +120,7 @@
             <field name="answer_key">category</field>
             <field name="next_step_id" ref="bot_step_subject"/>
         </record>
-        <record id="bot_option_track" model="whatsapp.bot.option">
+        <record id="bot_option_track" model="ibq.whatsapp.bot.option">
             <field name="step_id" ref="bot_step_welcome"/>
             <field name="sequence">30</field>
             <field name="key">3</field>
@@ -129,7 +129,7 @@
             <field name="answer_key">category</field>
             <field name="next_step_id" ref="bot_step_track"/>
         </record>
-        <record id="bot_option_agent" model="whatsapp.bot.option">
+        <record id="bot_option_agent" model="ibq.whatsapp.bot.option">
             <field name="step_id" ref="bot_step_welcome"/>
             <field name="sequence">40</field>
             <field name="key">4</field>
@@ -145,28 +145,28 @@
              submit in Twilio's Content Template Builder. Paste the returned
              HX... Content SID into each record afterwards.
              ============================================================ -->
-        <record id="whatsapp_template_ticket_created" model="whatsapp.template">
+        <record id="whatsapp_template_ticket_created" model="ibq.whatsapp.template">
             <field name="name">Ticket created</field>
             <field name="code">ticket_created</field>
             <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
             <field name="status">draft</field>
             <field name="body">Hi {{1}}, we have opened ticket #{{2}} for you: "{{3}}". We will keep you posted right here.</field>
         </record>
-        <record id="whatsapp_template_ticket_created_v1" model="whatsapp.template.variable">
+        <record id="whatsapp_template_ticket_created_v1" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_ticket_created"/>
             <field name="index">1</field>
             <field name="name">Customer name</field>
             <field name="source_type">field</field>
             <field name="field_path">partner_id.name</field>
         </record>
-        <record id="whatsapp_template_ticket_created_v2" model="whatsapp.template.variable">
+        <record id="whatsapp_template_ticket_created_v2" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_ticket_created"/>
             <field name="index">2</field>
             <field name="name">Ticket number</field>
             <field name="source_type">field</field>
             <field name="field_path">id</field>
         </record>
-        <record id="whatsapp_template_ticket_created_v3" model="whatsapp.template.variable">
+        <record id="whatsapp_template_ticket_created_v3" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_ticket_created"/>
             <field name="index">3</field>
             <field name="name">Ticket subject</field>
@@ -174,28 +174,28 @@
             <field name="field_path">name</field>
         </record>
 
-        <record id="whatsapp_template_agent_handoff" model="whatsapp.template">
+        <record id="whatsapp_template_agent_handoff" model="ibq.whatsapp.template">
             <field name="name">Agent hand-off</field>
             <field name="code">agent_handoff</field>
             <field name="status">draft</field>
             <field name="body">Thanks for waiting. One of our agents is picking this up and will reply here shortly.</field>
         </record>
 
-        <record id="whatsapp_template_stage_update" model="whatsapp.template">
+        <record id="whatsapp_template_stage_update" model="ibq.whatsapp.template">
             <field name="name">Ticket stage update</field>
             <field name="code">ticket_stage_update</field>
             <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
             <field name="status">draft</field>
             <field name="body">Update on ticket #{{1}}: it is now "{{2}}".</field>
         </record>
-        <record id="whatsapp_template_stage_update_v1" model="whatsapp.template.variable">
+        <record id="whatsapp_template_stage_update_v1" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_stage_update"/>
             <field name="index">1</field>
             <field name="name">Ticket number</field>
             <field name="source_type">field</field>
             <field name="field_path">id</field>
         </record>
-        <record id="whatsapp_template_stage_update_v2" model="whatsapp.template.variable">
+        <record id="whatsapp_template_stage_update_v2" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_stage_update"/>
             <field name="index">2</field>
             <field name="name">Stage</field>
@@ -203,14 +203,14 @@
             <field name="field_path">stage_id.name</field>
         </record>
 
-        <record id="whatsapp_template_ticket_closed" model="whatsapp.template">
+        <record id="whatsapp_template_ticket_closed" model="ibq.whatsapp.template">
             <field name="name">Ticket closed</field>
             <field name="code">ticket_closed</field>
             <field name="model_id" ref="helpdesk.model_helpdesk_ticket"/>
             <field name="status">draft</field>
             <field name="body">Ticket #{{1}} is now closed. If anything is still off, reply here and we will reopen it.</field>
         </record>
-        <record id="whatsapp_template_ticket_closed_v1" model="whatsapp.template.variable">
+        <record id="whatsapp_template_ticket_closed_v1" model="ibq.whatsapp.template.variable">
             <field name="template_id" ref="whatsapp_template_ticket_closed"/>
             <field name="index">1</field>
             <field name="name">Ticket number</field>

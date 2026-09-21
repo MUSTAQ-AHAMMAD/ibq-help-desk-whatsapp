@@ -49,7 +49,7 @@ class WhatsappAgent(models.Model):
     place to keep in sync.
     """
 
-    _name = "whatsapp.agent"
+    _name = "ibq.whatsapp.agent"
     _description = "WhatsApp Agent"
     _order = "role, sequence, id"
     _rec_name = "user_id"
@@ -84,7 +84,7 @@ class WhatsappAgent(models.Model):
              "Leave empty to cover every department.",
     )
     account_ids = fields.Many2many(
-        "whatsapp.account", string="Senders",
+        "ibq.whatsapp.account", string="Senders",
         help="WhatsApp numbers this agent covers. Leave empty to cover all.",
     )
 
@@ -188,7 +188,7 @@ class WhatsappAgent(models.Model):
             agent.role_rights = ",".join(sorted(ROLE_RIGHTS.get(agent.role, ())))
 
     def _compute_workload(self):
-        conversations = self.env["whatsapp.conversation"].sudo()
+        conversations = self.env["ibq.whatsapp.conversation"].sudo()
         open_groups = conversations._read_group(
             [("user_id", "in", self.user_id.ids), ("state", "=", "agent")],
             ["user_id"], ["__count"],

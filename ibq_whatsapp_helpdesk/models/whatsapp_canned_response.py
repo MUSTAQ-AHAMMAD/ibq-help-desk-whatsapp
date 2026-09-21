@@ -15,7 +15,7 @@ class WhatsappCannedResponse(models.Model):
     into two keystrokes and keeps the wording consistent across the team.
     """
 
-    _name = "whatsapp.canned.response"
+    _name = "ibq.whatsapp.canned.response"
     _description = "WhatsApp Canned Response"
     _order = "sequence, shortcut"
     _rec_name = "shortcut"
@@ -99,7 +99,7 @@ class WhatsappCannedResponse(models.Model):
         values.setdefault("number", conversation.number or "")
         values.setdefault("ticket_ref", conversation.ticket_id
                           and str(conversation.ticket_id.id) or "")
-        agent = self.env["whatsapp.agent"]._current()
+        agent = self.env["ibq.whatsapp.agent"]._current()
         values.setdefault("agent", agent.display_alias or self.env.user.name)
         return PLACEHOLDER_RE.sub(
             lambda m: str(values.get(m.group(1), m.group(0))), self.body or ""

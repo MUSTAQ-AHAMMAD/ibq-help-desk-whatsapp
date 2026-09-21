@@ -59,7 +59,7 @@ def similarity(left, right):
 
 
 class WhatsappIssue(models.Model):
-    _name = "whatsapp.issue"
+    _name = "ibq.whatsapp.issue"
     _description = "WhatsApp Issue"
     _order = "occurrence_count desc, id desc"
 
@@ -74,10 +74,10 @@ class WhatsappIssue(models.Model):
     )
     active = fields.Boolean(default=True)
     team_id = fields.Many2one("helpdesk.team", string="Department")
-    tag_ids = fields.Many2many("whatsapp.tag", string="Tags")
+    tag_ids = fields.Many2many("ibq.whatsapp.tag", string="Tags")
 
     conversation_ids = fields.One2many(
-        "whatsapp.conversation", "issue_id", string="Conversations"
+        "ibq.whatsapp.conversation", "issue_id", string="Conversations"
     )
     occurrence_count = fields.Integer(
         "Occurrences", compute="_compute_stats", store=True
@@ -189,7 +189,7 @@ class WhatsappIssue(models.Model):
         chat, or a matching rule that was tightened after the fact. Leaving it
         in the catalogue means the reports count problems nobody has.
         """
-        pending = self.env["whatsapp.conversation"].sudo().search(
+        pending = self.env["ibq.whatsapp.conversation"].sudo().search(
             [("issue_id", "=", False)], limit=limit, order="id"
         )
         for conversation in pending:
@@ -204,8 +204,8 @@ class WhatsappIssue(models.Model):
         The rules can be tuned -- a stopword added, the threshold moved -- and
         this is how you apply that to what is already there.
         """
-        self.env["whatsapp.agent"]._assert_right("manage_tags")
-        conversations = self.env["whatsapp.conversation"].sudo().search([])
+        self.env["ibq.whatsapp.agent"]._assert_right("manage_tags")
+        conversations = self.env["ibq.whatsapp.conversation"].sudo().search([])
         conversations.write({"issue_id": False})
         self.sudo().search([]).unlink()
         for conversation in conversations:
