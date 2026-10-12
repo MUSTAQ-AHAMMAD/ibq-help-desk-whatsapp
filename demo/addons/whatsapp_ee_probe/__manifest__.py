@@ -13,7 +13,7 @@ This declares the minimum of that contract -- `whatsapp.message` carrying
 `mail_message_id`, and the `mail.message` One2many that points at it -- so the
 collision can be reproduced without an Enterprise licence.
 """,
-    "version": "17.0.1.0.0",
+    "version": "1.0.0",
     "license": "LGPL-3",
     "depends": ["base", "mail"],
     "installable": True,

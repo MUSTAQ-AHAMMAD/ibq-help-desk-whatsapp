@@ -50,16 +50,41 @@
                         <field name="last_error" readonly="1" nolabel="1"/>
                     </div>
                     <group>
-                        <group string="Twilio Credentials">
-                            <field name="account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"/>
-                            <field name="auth_token" password="True"/>
-                            <field name="sender_mode" widget="radio"/>
+                        <group string="Connection">
+                            <field name="provider" widget="radio"/>
+
+                            <!-- Meta Cloud API -->
+                            <field name="meta_phone_number_id" placeholder="123456789012345"
+                                   invisible="provider != 'meta'"
+                                   required="provider == 'meta'"/>
+                            <field name="meta_waba_id" placeholder="123456789012345"
+                                   invisible="provider != 'meta'"/>
+                            <field name="meta_access_token" password="True"
+                                   invisible="provider != 'meta'"
+                                   required="provider == 'meta'"/>
+                            <field name="meta_app_secret" password="True"
+                                   invisible="provider != 'meta'"/>
+                            <field name="meta_verify_token"
+                                   placeholder="any string you also paste into Meta"
+                                   invisible="provider != 'meta'"/>
+                            <field name="meta_api_version" invisible="provider != 'meta'"/>
+
+                            <!-- Twilio -->
+                            <field name="account_sid" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                                   invisible="provider != 'twilio'"
+                                   required="provider == 'twilio'"/>
+                            <field name="auth_token" password="True"
+                                   invisible="provider != 'twilio'"
+                                   required="provider == 'twilio'"/>
+                            <field name="sender_mode" widget="radio"
+                                   invisible="provider != 'twilio'"/>
+
                             <field name="phone_number" placeholder="+14155238886"
-                                   invisible="sender_mode != 'number'"
-                                   required="sender_mode == 'number'"/>
+                                   invisible="provider == 'twilio' and sender_mode != 'number'"
+                                   required="provider == 'meta' or sender_mode == 'number'"/>
                             <field name="messaging_service_sid" placeholder="MGxxxxxxxx"
-                                   invisible="sender_mode != 'service'"
-                                   required="sender_mode == 'service'"/>
+                                   invisible="provider != 'twilio' or sender_mode != 'service'"
+                                   required="provider == 'twilio' and sender_mode == 'service'"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                             <field name="active" widget="boolean_toggle"/>
                         </group>
@@ -74,14 +99,21 @@
                         </group>
                     </group>
                     <group string="Webhooks">
-                        <div class="text-muted" colspan="2">
+                        <div class="text-muted" colspan="2" invisible="provider != 'meta'">
+                            Paste the Callback URL and the Verify Token into the Meta app
+                            dashboard, under WhatsApp &gt; Configuration &gt; Webhook, then
+                            subscribe to the <strong>messages</strong> field. Meta delivers
+                            inbound messages and delivery receipts to this one URL.
+                        </div>
+                        <div class="text-muted" colspan="2" invisible="provider != 'twilio'">
                             Paste these into the Twilio Console, on the WhatsApp sender
                             (Messaging &gt; Senders) or the Messaging Service you use.
                         </div>
                         <field name="inbound_webhook_url" readonly="1"
-                               string="Inbound (When a message comes in)"/>
+                               string="Callback URL"/>
                         <field name="status_webhook_url" readonly="1"
-                               string="Status callback"/>
+                               string="Status callback"
+                               invisible="provider == 'meta'"/>
                         <field name="webhook_base_url"
                                placeholder="https://your-tunnel.ngrok-free.app"/>
                         <field name="verify_signature"/>
@@ -96,11 +128,15 @@
         <field name="res_model">ibq.whatsapp.account</field>
         <field name="view_mode">list,form</field>
         <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">Connect a Twilio WhatsApp sender</p>
+            <p class="o_view_nocontent_smiling_face">Connect a WhatsApp sender</p>
             <p>
-                Grab the Account SID and Auth Token from the Twilio Console, pick the
-                WhatsApp sender (or the sandbox number while testing), then copy the
-                two webhook URLs back into Twilio.
+                On Meta, take the Phone Number ID and a permanent Access Token from the
+                app dashboard, add the App Secret, then paste the Callback URL and your
+                Verify Token back into Meta and subscribe to the messages field.
+            </p>
+            <p>
+                On Twilio, take the Account SID and Auth Token from the console, pick the
+                WhatsApp sender, then copy the two webhook URLs back into Twilio.
             </p>
         </field>
     </record>

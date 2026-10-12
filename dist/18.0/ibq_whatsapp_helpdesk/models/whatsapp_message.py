@@ -32,6 +32,9 @@ TWILIO_STATUS_MAP = {
     "failed": "failed",
     "undelivered": "failed",
     "canceled": "cancelled",
+    # Meta uses the same vocabulary for the states it shares with Twilio and
+    # adds only this one.
+    "deleted": "cancelled",
 }
 
 
@@ -159,6 +162,9 @@ class WhatsappMessage(models.Model):
                 content_sid=self.template_id.content_sid if self.message_type == "template" else None,
                 content_variables=self.content_variables,
                 status_callback=self._status_callback_url(),
+                # Meta identifies a template by name and language rather than
+                # by a content id, so it needs the record, not just the sid.
+                template=self.template_id if self.message_type == "template" else None,
             )
         except UserError as exc:
             self._mark_failed(code=False, message=str(exc))
@@ -222,7 +228,7 @@ class WhatsappMessage(models.Model):
         if params.get("ErrorCode"):
             values["error_code"] = params["ErrorCode"]
             values["error_message"] = params.get("ErrorMessage") or _(
-                "Twilio error %s"
+                "Provider error %s"
             ) % params["ErrorCode"]
         message.write(values)
         return True
@@ -231,24 +237,36 @@ class WhatsappMessage(models.Model):
     # Inbound media
     # ------------------------------------------------------------------
     def _download_media(self, urls):
-        """Pull inbound media from Twilio and store it as attachments.
+        """Pull inbound media from the provider and store it as attachments.
 
-        Twilio media URLs need the account credentials, so we fetch them
-        server-side rather than leaving dead links in the chatter.
+        Neither provider serves media anonymously, so it is fetched
+        server-side rather than leaving dead links in the chatter. Twilio
+        gives a URL guarded by the account credentials; Meta gives an id that
+        must first be resolved into a short-lived URL, then fetched with the
+        access token.
         """
         self.ensure_one()
         if requests is None or not urls:
             return
         account = self.account_id.sudo()
+        is_meta = account.provider == "meta"
         attachments = self.env["ir.attachment"]
-        for index, url in enumerate(urls):
+        for index, reference in enumerate(urls):
+            if is_meta:
+                url = account._meta_media_url(reference)
+                if not url:
+                    continue
+                kwargs = {
+                    "headers": {"Authorization": "Bearer %s" % (account.meta_access_token or "")},
+                }
+            else:
+                url = reference
+                kwargs = {"auth": (account.account_sid, account.auth_token)}
             try:
-                response = requests.get(
-                    url, auth=(account.account_sid, account.auth_token), timeout=30
-                )
+                response = requests.get(url, timeout=30, **kwargs)
                 response.raise_for_status()
             except Exception as exc:  # media is best-effort, never block intake
-                _logger.warning("Could not fetch WhatsApp media %s: %s", url, exc)
+                _logger.warning("Could not fetch WhatsApp media %s: %s", reference, exc)
                 continue
             content_type = response.headers.get("Content-Type", "")
             extension = content_type.split("/")[-1].split(";")[0] or "bin"

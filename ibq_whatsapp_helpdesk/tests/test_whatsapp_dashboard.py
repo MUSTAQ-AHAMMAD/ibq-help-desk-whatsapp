@@ -44,6 +44,7 @@ class TestWhatsappDashboard(TransactionCase):
 
         cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Dashboard sender",
+            "provider": "twilio",
             "account_sid": "AC" + "1" * 32,
             "auth_token": "token",
             "phone_number": "+14155238887",

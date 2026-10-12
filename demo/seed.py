@@ -182,6 +182,7 @@ def _build(env):
                        raise_if_not_found=False)
         account = env["ibq.whatsapp.account"].create({
             "name": "IBQ Support Line",
+            "provider": "twilio",
             "account_sid": "AC" + "0" * 32,
             "auth_token": "demo-token-not-real",
             "phone_number": "+14155238886",

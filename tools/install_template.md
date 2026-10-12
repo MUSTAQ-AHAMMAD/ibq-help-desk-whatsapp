@@ -163,32 +163,80 @@ location / {
 
 ## 6. Configure it
 
-**WhatsApp ▸ Configuration ▸ WhatsApp Accounts ▸ New**
+Pick a provider on the account record. **Meta WhatsApp Cloud API** talks to
+WhatsApp directly; **Twilio** resells the same thing with a per-message fee on
+top. Everything downstream -- the bot, tickets, the agent console, reports --
+behaves identically either way.
+
+### Option A: Meta WhatsApp Cloud API (recommended)
+
+**WhatsApp ▸ Configuration ▸ WhatsApp Accounts ▸ New**, Provider = *Meta*.
+
+From <https://developers.facebook.com> ▸ your app ▸ **WhatsApp ▸ API Setup**:
+
+| Field in Odoo | Where it comes from |
+|---|---|
+| Phone Number ID | API Setup. A numeric id, **not** the phone number |
+| WhatsApp Business Account ID | API Setup, next to it |
+| Access Token | **Business Settings ▸ System Users**: add a System User, grant it the app with `whatsapp_business_messaging`, generate a **permanent** token. The 24-hour token on the API Setup page expires overnight |
+| App Secret | **App Settings ▸ Basic ▸ App Secret** |
+| Webhook Verify Token | Any string you invent. You will paste the same one into Meta |
+
+Press **Test Connection** -- you want a green *Connected*. It also reads the
+real sender number back from Meta and corrects the field if it was mistyped.
+
+Then wire the webhook, in **WhatsApp ▸ Configuration ▸ Webhook ▸ Edit**:
+
+- **Callback URL** -- the URL shown on the Odoo account record
+- **Verify Token** -- the same string you put in Odoo
+- Click **Verify and save**, then **Manage** and subscribe to the
+  **messages** field
+
+Meta sends inbound messages *and* delivery receipts to that one URL. Odoo must
+already be reachable over HTTPS when you click Verify and save, because Meta
+calls it immediately.
+
+Finally, add each approved template under **Configuration ▸ Templates** and put
+its exact name from the WhatsApp Manager into **Meta Template Name**.
+
+> The access token and app secret are stored unencrypted in the database and
+> are readable by the WhatsApp Administrator group. Treat that group as
+> privileged, and rotate both in Meta if a database dump ever leaves your
+> control.
+
+### Option B: Twilio
+
+Provider = *Twilio*.
 
 1. Paste the Account SID and Auth Token from the Twilio console.
 2. Set the WhatsApp sender in E.164 (`+14155238886`).
-3. Press **Test Connection** — you want a green *Connected*.
+3. Press **Test Connection** -- you want a green *Connected*.
 4. Copy the two webhook URLs it shows into Twilio, both as **POST**:
-   - `https://your-odoo/whatsapp/twilio/inbound` → *When a message comes in*
-   - `https://your-odoo/whatsapp/twilio/status` → *Status callback*
+   - `.../whatsapp/twilio/inbound` -> *When a message comes in*
+   - `.../whatsapp/twilio/status` -> *Status callback*
 
-Then **WhatsApp ▸ Team ▸ Add Team Members** to build the roster, and paste each
-approved template's `HX…` Content SID into its record under
+Paste each approved template's `HX...` Content SID into its record under
 **Configuration ▸ Templates**.
 
-> The Twilio auth token is stored unencrypted in the database and is readable by
-> the WhatsApp Administrator group. Treat that group as privileged, and rotate
-> the token in Twilio if a database dump ever leaves your control.
+> The Twilio auth token is stored unencrypted in the database and is readable
+> by the WhatsApp Administrator group. Treat that group as privileged, and
+> rotate the token in Twilio if a database dump ever leaves your control.
+
+### Either way
+
+**WhatsApp ▸ Team ▸ Add Team Members** to build the roster. For texted agent
+commands, each agent's own WhatsApp number must be on their roster record --
+that number is the only thing authenticating those commands.
 
 ## 7. Verify, in this order
 
-1. `curl https://your-odoo/whatsapp/twilio/health` → `ok: 1 WhatsApp account(s) configured`
+1. `curl https://your-odoo/whatsapp/meta/health` (or `.../twilio/health`) → `ok: 1 ... account(s) configured`
 2. **Test Connection** on the account → *Connected*
 3. Message the number from a real phone → a conversation appears within a second
 4. Reply from **WhatsApp ▸ Dashboard ▸ Inbox** → it arrives on the phone
 5. Move the ticket into a stage that has a template → the customer gets it
 
-Step 3 is the one that matters. **No real Twilio message has ever gone through
+Step 3 is the one that matters. **No real WhatsApp message has ever gone through
 this addon** — every automated test stubs the transport — so treat step 3 as the
 real acceptance test, not a formality.
 
@@ -230,9 +278,20 @@ want it back.
 | `Module helpdesk not found` | Odoo Community without the stub, or Enterprise addons not in `addons_path`. |
 | Messages sent but nothing arrives inbound | Webhook not reachable, not HTTPS, or not POST. Check `/whatsapp/twilio/health` from outside. |
 | Log shows `invalid X-Twilio-Signature` | `proxy_mode` not set, or **Public Base URL** does not match the URL Twilio actually calls. |
+| Log shows `invalid X-Hub-Signature-256` | The **App Secret** is wrong, or a proxy is rewriting the request body. It is signed over the raw bytes. |
+| Meta's *Verify and save* fails | Odoo not reachable over HTTPS yet, or the Verify Token differs between Meta and Odoo. |
+| Meta webhook verified but nothing arrives | You did not subscribe to the **messages** field after saving. |
+| Meta sends work, then stop after a day | You used the 24h test token. Generate a permanent System User token. |
 | Dashboard loads but never updates live | The gevent port is not proxied for `/websocket`. |
 | Scheduled sends never leave | `workers = 0`, so cron does not run. |
 | `KeyError: 'mail_message_id'` during install | You are on a build older than 4.0.0. See below. |
+
+### Upgrading from 4.x
+
+5.0.0 adds the Meta Cloud API as an alternative provider. Existing Twilio
+accounts keep working and are migrated to `Provider = Twilio` automatically on
+upgrade -- nothing to do. `-u ibq_whatsapp_helpdesk` is enough; there is no
+model rename this time.
 
 ### `KeyError: 'mail_message_id'` during install
 
@@ -257,4 +316,4 @@ sudo -u odoo /opt/odoo/odoo-bin -c /etc/odoo/odoo.conf \
     --test-tags=/ibq_whatsapp_helpdesk --stop-after-init
 ```
 
-Expect `0 failed, 0 error(s) of 157 tests`.
+Expect `0 failed, 0 error(s) of 194 tests`.

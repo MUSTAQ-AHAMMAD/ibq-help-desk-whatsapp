@@ -28,6 +28,7 @@ class TestWhatsappIssue(TransactionCase):
         cls.team = cls.env["helpdesk.team"].create({"name": "Issue Team"})
         cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Issue sender",
+            "provider": "twilio",
             "account_sid": "AC" + "4" * 32,
             "auth_token": "token",
             "phone_number": "+14155238890",

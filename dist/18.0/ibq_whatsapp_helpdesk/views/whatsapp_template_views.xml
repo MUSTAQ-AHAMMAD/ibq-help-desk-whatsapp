@@ -11,7 +11,8 @@
             <list string="WhatsApp Templates">
                 <field name="name"/>
                 <field name="code"/>
-                <field name="content_sid"/>
+                <field name="meta_template_name" optional="show"/>
+                <field name="content_sid" optional="show"/>
                 <field name="model_id"/>
                 <field name="lang_code"/>
                 <field name="status" widget="badge"
@@ -39,13 +40,16 @@
                         <h1><field name="name" placeholder="Ticket created"/></h1>
                     </div>
                     <div class="alert alert-info" role="alert"
-                         invisible="content_sid">
-                        No Content SID yet. Without one this template can only be
-                        delivered inside the 24h session window, as plain text.
+                         invisible="content_sid or meta_template_name">
+                        Not linked to an approved provider template yet. Until it is,
+                        this can only be delivered inside the 24h session window, as
+                        plain text. Fill the Meta Template Name, or the Twilio Content
+                        SID, depending on which provider the account uses.
                     </div>
                     <group>
                         <group>
                             <field name="code" placeholder="ticket_created"/>
+                            <field name="meta_template_name" placeholder="ticket_created"/>
                             <field name="content_sid" placeholder="HXxxxxxxxxxxxxxxxx"/>
                             <field name="account_id"/>
                         </group>

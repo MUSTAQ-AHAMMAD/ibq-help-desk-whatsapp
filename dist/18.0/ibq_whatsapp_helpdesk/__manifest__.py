@@ -1,21 +1,28 @@
 # -*- coding: utf-8 -*-
 {
-    "name": "IBQ WhatsApp Helpdesk (Twilio)",
-    "summary": "Run a helpdesk over WhatsApp with Twilio: scripted bot, ticket "
-               "creation, a role-based agent console and full reporting.",
+    "name": "IBQ WhatsApp Helpdesk",
+    "summary": "Run a helpdesk over WhatsApp via the Meta Cloud API or Twilio: "
+               "scripted bot, ticket creation, a role-based agent console and "
+               "full reporting.",
     "description": """
 IBQ WhatsApp Helpdesk
 =====================
 
-Run a helpdesk over WhatsApp, using the Twilio Programmable Messaging API.
+Run a helpdesk over WhatsApp, using Meta's WhatsApp Cloud API directly or
+Twilio's Programmable Messaging API. The provider is a per-account setting;
+everything downstream behaves identically either way.
 
 The channel
 -----------
 
-* Multi-account Twilio configuration: Account SID, Auth Token, and either a
-  WhatsApp sender number or a Messaging Service.
-* Signed inbound webhook, validating the ``X-Twilio-Signature`` HMAC, with
-  duplicate ``MessageSid`` values ignored so Twilio retries never replay the bot.
+* Meta Cloud API: Phone Number ID, a permanent System User access token, the
+  app secret and your own webhook verify token. One callback URL carries both
+  inbound messages and delivery receipts.
+* Twilio: Account SID, Auth Token, and either a WhatsApp sender number or a
+  Messaging Service.
+* Signed inbound webhooks either way -- ``X-Hub-Signature-256`` over the raw
+  body for Meta, ``X-Twilio-Signature`` for Twilio -- with duplicate message
+  ids ignored so provider retries never replay the bot.
 * Conversations threaded per phone number, linked to a contact and a ticket.
 * A no-code bot flow: menus, free-text questions with validation, ticket
   creation, agent hand-off, closing.
@@ -44,7 +51,7 @@ The team
 * Customer satisfaction collected automatically when a handled chat closes.
 * A blocklist that drops inbound messages before any record is created.
 """,
-    "version": "18.0.4.0.0",
+    "version": "18.0.5.0.0",
     "category": "Services/Helpdesk",
     "author": "IBQ",
     "website": "https://github.com/ibq/ibq-help-desk-whatsapp",

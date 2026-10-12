@@ -4,3 +4,4 @@ from . import test_whatsapp_dashboard
 from . import test_whatsapp_roles
 from . import test_whatsapp_assign
 from . import test_whatsapp_issue
+from . import test_whatsapp_meta

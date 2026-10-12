@@ -30,13 +30,20 @@ class WhatsappTemplate(models.Model):
     )
     content_sid = fields.Char(
         "Content SID",
-        help="Starts with 'HX'. Copy it from Twilio > Content Template Builder. "
+        help="Twilio only. Starts with 'HX'. Copy it from Twilio > Content "
+             "Template Builder. Required to send outside the 24h session window.",
+    )
+    meta_template_name = fields.Char(
+        "Meta Template Name",
+        help="Meta only. The exact template name as approved in the WhatsApp "
+             "Manager, e.g. 'ticket_created'. Defaults to the Code above. "
              "Required to send outside the 24h session window.",
     )
     account_id = fields.Many2one("ibq.whatsapp.account", string="Account")
     body = fields.Text(
         required=True,
-        help="Template body using Twilio numbered placeholders: {{1}}, {{2}}, ...",
+        help="Template body using numbered placeholders: {{1}}, {{2}}, ... "
+             "Both providers use the same syntax.",
     )
     variable_ids = fields.One2many(
         "ibq.whatsapp.template.variable", "template_id", string="Variables"
@@ -52,7 +59,8 @@ class WhatsappTemplate(models.Model):
         [("draft", "Draft"), ("pending", "Pending Approval"),
          ("approved", "Approved"), ("rejected", "Rejected")],
         default="draft", required=True,
-        help="Mirrors the approval status shown in the Twilio console.",
+        help="Mirrors the approval status shown in the provider's console "
+             "(Meta WhatsApp Manager, or the Twilio Content Template Builder).",
     )
 
     _sql_constraints = [

@@ -37,6 +37,7 @@ class TestWhatsappRoles(TransactionCase):
 
         cls.account = cls.env["ibq.whatsapp.account"].create({
             "name": "Roles sender",
+            "provider": "twilio",
             "account_sid": "AC" + "2" * 32,
             "auth_token": "token",
             "phone_number": "+14155238888",
