@@ -113,7 +113,7 @@
                               value="formatDuration(kpi.avg_resolution.value)"
                               hint="'average, open to closed'"/>
                     <StatTile label="'Failed sends'" value="kpi.failed.value"
-                              hint="'rejected by Twilio'"/>
+                              hint="'rejected by the provider'"/>
                 </section>
 
                 <section class="o_wa_panels">
@@ -143,7 +143,7 @@
                                 <span class="o_wa_accounts__num"><t t-esc="account.number"/></span>
                             </li>
                             <li t-if="!state.boot.accounts.length" class="o_wa_muted">
-                                No Twilio sender configured yet.
+                                No WhatsApp sender configured yet.
                             </li>
                         </ul>
                     </article>

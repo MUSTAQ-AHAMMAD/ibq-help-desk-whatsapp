@@ -1,0 +1,52 @@
+# Demo stack for ibq_whatsapp_helpdesk on Odoo 18.
+#
+#   python tools/build_v18.py                      # regenerate dist/18.0
+#   docker compose -f demo/docker-compose.18.yml up -d
+#   http://localhost:8018   (login: admin / admin)
+#
+# Mirrors demo/docker-compose.yml but serves the generated Odoo 18 build, so
+# the two can run side by side on different ports.
+services:
+  db18:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo
+      POSTGRES_DB: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - dbdata18:/var/lib/postgresql/data
+
+  odoo18:
+    image: odoo:18
+    depends_on:
+      db18:
+        condition: service_healthy
+    ports:
+      - "8018:8069"
+    environment:
+      HOST: db18
+      USER: odoo
+      PASSWORD: odoo
+    volumes:
+      # The generated Odoo 18 build, plus the probe that stands in for
+      # Enterprise's own WhatsApp app.
+      - ../dist/18.0:/mnt/project:ro
+      - ./addons:/mnt/demo-addons:ro
+      - ../demo:/mnt/seed:ro
+      - odoodata18:/var/lib/odoo
+    command: >
+      odoo
+      --addons-path=/usr/lib/python3/dist-packages/odoo/addons,/mnt/project,/mnt/demo-addons
+      --database=demo18
+      --db_host=db18 --db_user=odoo --db_password=odoo
+      --without-demo=all
+      --limit-time-real=600
+
+volumes:
+  dbdata18:
+  odoodata18:
